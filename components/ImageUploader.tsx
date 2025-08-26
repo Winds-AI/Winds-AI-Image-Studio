@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useCallback } from 'react';
 import { UploadIcon } from './icons/UploadIcon';
 import { CameraIcon } from './icons/CameraIcon';
@@ -7,11 +8,11 @@ import { CameraCapture } from './CameraCapture';
 interface ImageUploaderProps {
   id: string;
   label: string;
-  onImageUpload: (base64Image: string | null) => void;
+  value: string | null;
+  onChange: (base64Image: string | null) => void;
 }
 
-export const ImageUploader: React.FC<ImageUploaderProps> = ({ id, label, onImageUpload }) => {
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+export const ImageUploader: React.FC<ImageUploaderProps> = ({ id, label, value, onChange }) => {
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -34,24 +35,21 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ id, label, onImage
                 if (ctx) {
                     ctx.drawImage(img, 0, 0);
                     const convertedDataUrl = canvas.toDataURL('image/jpeg');
-                    setImagePreview(convertedDataUrl);
-                    onImageUpload(convertedDataUrl);
+                    onChange(convertedDataUrl);
                 } else {
                     console.error("Could not get canvas context to convert AVIF image.");
                     // Fallback to using the original if canvas fails
-                    setImagePreview(dataUrl);
-                    onImageUpload(dataUrl);
+                    onChange(dataUrl);
                 }
             };
             img.src = dataUrl;
         } else {
             // For other supported formats, use the file directly
-            setImagePreview(dataUrl);
-            onImageUpload(dataUrl);
+            onChange(dataUrl);
         }
     };
     reader.readAsDataURL(file);
-  }, [onImageUpload]);
+  }, [onChange]);
 
   const handleUploadClick = useCallback(() => {
     inputRef.current?.click();
@@ -62,19 +60,17 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ id, label, onImage
   }, []);
 
   const handleImageCapture = useCallback((base64Image: string) => {
-    setImagePreview(base64Image);
-    onImageUpload(base64Image);
+    onChange(base64Image);
     setIsCameraOpen(false);
-  }, [onImageUpload]);
+  }, [onChange]);
 
   const handleRemoveImage = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    setImagePreview(null);
-    onImageUpload(null);
+    onChange(null);
     if (inputRef.current) {
         inputRef.current.value = ''; // Reset file input
     }
-  }, [onImageUpload]);
+  }, [onChange]);
 
   return (
     <>
@@ -92,9 +88,9 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ id, label, onImage
             onChange={handleFileChange}
             aria-hidden="true"
           />
-          {imagePreview ? (
+          {value ? (
             <>
-              <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+              <img src={value} alt="Preview" className="w-full h-full object-cover" />
               <button 
                 onClick={handleRemoveImage}
                 className="absolute top-2 right-2 text-white bg-black/50 rounded-full p-1.5 hover:bg-black/80 transition-colors"

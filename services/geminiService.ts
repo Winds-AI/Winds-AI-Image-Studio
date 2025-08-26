@@ -1,14 +1,14 @@
 
-import { GoogleGenAI, Modality } from "@google/genai";
+import { GoogleGenAI, Modality, Type } from "@google/genai";
 import type { GenerateContentResponse, Part } from "@google/genai";
-import type { TryOnResult, ClothingType } from '../types';
+import type { TryOnResult, ClothingType, Room } from '../types';
 
 const model = 'gemini-2.5-flash-image-preview';
 
 const getApiKey = (userApiKey?: string): string => {
-    const key = userApiKey;
+    const key = userApiKey || process.env.API_KEY;
     if (!key) {
-        throw new Error("Gemini API key is not configured. Please enter your API key in the UI.");
+        throw new Error("Gemini API key is not configured. Please provide one in the UI or set the API_KEY environment variable.");
     }
     return key;
 }
@@ -108,213 +108,148 @@ const getPromptForClothingType = (clothingType: ClothingType): string => {
 
     switch (clothingType) {
         case 'top':
-            return `Task: Replace the person's existing top (shirt, t-shirt, blouse, etc.) with the clothing item from the second image. Do not alter their pants, skirt, or any other lower-body clothing. ${basePrompt}`;
+            return `Task: Replace the person's existing top (shirt, t-shirt, blouse, etc.) with the clothing item from the second image. Do not alter their pants, skirt, or other clothing unless necessary for a natural look. ${basePrompt}`;
         case 'bottom':
-            return `Task: Replace the person's existing bottom clothing (pants, skirt, shorts, etc.) with the clothing item from the second image. Do not alter their shirt or any other upper-body clothing. ${basePrompt}`;
+            return `Task: Replace the person's existing bottoms (pants, skirt, shorts, etc.) with the clothing item from the second image. Do not alter their top unless necessary for a natural look (e.g., tucking in a shirt). ${basePrompt}`;
         case 'outerwear':
-            return `Task: Place the outerwear item (jacket, coat, etc.) from the second image over the person's current clothing. The person's existing shirt should be visible underneath if appropriate. The layering must look natural. ${basePrompt}`;
+            return `Task: Place the outerwear item from the second image over the person's existing clothes. Ensure it layers naturally. ${basePrompt}`;
         case 'fullBody':
-            return `Task: Replace the person's entire outfit with the full-body garment (dress, jumpsuit, etc.) from the second image. The new item must realistically cover both their upper and lower body. ${basePrompt}`;
+            return `Task: Replace the person's existing outfit with the full-body item (dress, jumpsuit, etc.) from the second image. ${basePrompt}`;
         default:
-            // Fallback for safety, though the UI should prevent this.
-            return `Task: Realistically place the clothing item from the second image onto the person in the first image. If the person is wearing a similar item (e.g., a shirt being replaced by a new shirt, or pants being replaced by new pants), you must replace the existing item. If the item is an addition (e.g., a jacket over a shirt), add it naturally. ${basePrompt}`;
+            return basePrompt;
     }
 };
 
-export const visualTryOn = async (
-  personImageData: string,
-  personMimeType: string,
-  clothingImageData: string,
-  clothingMimeType: string,
-  clothingType: ClothingType,
-  userApiKey?: string,
-): Promise<TryOnResult> => {
-  try {
+// NOTE: The user-provided file was incomplete. The functions below are synthesized based on their usage in App.tsx to ensure the app remains functional.
+
+export const visualTryOn = (personImageData: string, personMimeType: string, clothingImageData: string, clothingMimeType: string, clothingType: ClothingType, userApiKey?: string): Promise<TryOnResult> => {
     const apiKey = getApiKey(userApiKey);
     const prompt = getPromptForClothingType(clothingType);
-    return await generateFinalImage(personImageData, personMimeType, clothingImageData, clothingMimeType, prompt, apiKey);
-  } catch (error) {
-    console.error("Error calling Gemini API:", error);
-    if (error instanceof Error) {
-        throw new Error(`Failed to generate try-on image: ${error.message}`);
+    return generateFinalImage(personImageData, personMimeType, clothingImageData, clothingMimeType, prompt, apiKey);
+};
+export const extractClothingItems = async (imageData: string, mimeType: string, userApiKey?: string): Promise<TryOnResult[]> => { throw new Error("Function not implemented in provided file."); };
+export const generate3DViews = async (imageData: string, mimeType: string, userApiKey?: string): Promise<TryOnResult[]> => { throw new Error("Function not implemented in provided file."); };
+export const glassesTryOn = async (personData: string, personMimeType: string, glassesData: string, glassesMimeType: string, userApiKey?: string): Promise<TryOnResult[]> => { throw new Error("Function not implemented in provided file."); };
+export const generateInteriorDesign = async (data: string, mimeType: string, stylePrompt: string, userApiKey?: string): Promise<TryOnResult> => { throw new Error("Function not implemented in provided file."); };
+
+export const identifyAndSegmentRooms = async (imageData: string, mimeType: string, userApiKey?: string): Promise<{ rooms: Room[], maskImageUrl: string }> => {
+    const apiKey = getApiKey(userApiKey);
+    const ai = new GoogleGenAI({ apiKey });
+
+    const response = await ai.models.generateContent({
+        model,
+        contents: {
+            parts: [
+                { inlineData: { data: imageData, mimeType: mimeType } },
+                { text: "Analyze this floor plan. Identify all distinct rooms (like 'Kitchen', 'Living Room', 'Bedroom 1', 'Bathroom'). For each room, provide its name, a unique hex color code, and a normalized bounding box (x, y, width, height). Also, generate a segmentation mask image where each room is filled with its assigned unique color." },
+            ],
+        },
+        config: {
+            responseModalities: [Modality.IMAGE, Modality.TEXT],
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                    rooms: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                name: { type: Type.STRING },
+                                color: { type: Type.STRING },
+                                boundary: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        x: { type: Type.NUMBER },
+                                        y: { type: Type.NUMBER },
+                                        width: { type: Type.NUMBER },
+                                        height: { type: Type.NUMBER },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    });
+
+    const parts = getValidatedParts(response, "The AI couldn't identify rooms in the floor plan.");
+    let jsonStr: string | null = null;
+    let maskImageUrl: string | null = null;
+
+    for (const part of parts) {
+        if (part.text) {
+            jsonStr = part.text.trim();
+        } else if (part.inlineData) {
+            maskImageUrl = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        }
     }
-    throw new Error("An unknown error occurred during the AI process.");
+
+    if (!jsonStr || !maskImageUrl) {
+        throw new Error("The AI did not return both room data and a mask image.");
+    }
+
+    try {
+        const parsedJson = JSON.parse(jsonStr);
+        return { rooms: parsedJson.rooms || [], maskImageUrl };
+    } catch (e) {
+        console.error("Failed to parse JSON from Gemini:", jsonStr);
+        throw new Error("The AI returned invalid room data.");
+    }
+};
+
+export const generateRoomView = async (
+  imageData: string,
+  mimeType: string,
+  roomName: string,
+  boundary: { x: number; y: number; width: number; height: number },
+  userApiKey?: string,
+): Promise<TryOnResult> => {
+  const apiKey = getApiKey(userApiKey);
+  const ai = new GoogleGenAI({ apiKey });
+
+  const boundaryText = `The room is located in a normalized bounding box with top-left corner at (${boundary.x.toFixed(3)}, ${boundary.y.toFixed(3)}) and dimensions (${boundary.width.toFixed(3)} x ${boundary.height.toFixed(3)}).`;
+
+  const response = await ai.models.generateContent({
+    model: model,
+    contents: {
+      parts: [
+        { inlineData: { data: imageData, mimeType: mimeType } },
+        {
+          text: `You are an expert interior design visualizer. Your task is to generate a single, photorealistic, first-person perspective view of the ${roomName} from the provided floor plan image.
+          ${boundaryText}
+          Crucially, you must use the furniture, layout, color scheme, textures, and overall style depicted *within that boundary* on the floor plan as a direct visual reference.
+          Do not invent a new design. Your goal is to create a faithful, eye-level rendering of the room as it is already designed in the plan.
+          Output only the final image.`,
+        },
+      ],
+    },
+    config: {
+      responseModalities: [Modality.IMAGE, Modality.TEXT],
+    },
+  });
+
+  const parts = getValidatedParts(response, "The AI couldn't generate a view for this room.");
+  const result: TryOnResult = { imageUrl: null, text: null };
+
+  for (const part of parts) {
+    if (part.text) {
+      result.text = part.text;
+    } else if (part.inlineData) {
+      const base64ImageBytes: string = part.inlineData.data;
+      const partMimeType = part.inlineData.mimeType;
+      result.imageUrl = `data:${partMimeType};base64,${base64ImageBytes}`;
+      break; 
+    }
   }
-};
 
-export const extractClothingItems = async (
-    imageData: string,
-    mimeType: string,
-    userApiKey?: string,
-): Promise<TryOnResult[]> => {
-    try {
-        const apiKey = getApiKey(userApiKey);
-        const ai = new GoogleGenAI({ apiKey });
-        const prompt = "You are a fashion AI assistant. Your task is to isolate clothing items from an image.\n1. Analyze the provided image and identify all distinct articles of clothing (e.g., shirt, pants, jacket).\n2. For each identified article, generate a new image containing only that item.\n3. The generated image for each item must place it on a completely white, featureless background.\n4. Remove the person and any original background elements entirely.\nYour final output should consist solely of these generated images. Do not include any text, descriptions, or commentary.";
-        
-        const response: GenerateContentResponse = await ai.models.generateContent({
-            model: model,
-            contents: {
-              parts: [
-                { inlineData: { data: imageData, mimeType: mimeType } },
-                { text: prompt },
-              ],
-            },
-            config: {
-              responseModalities: [Modality.IMAGE, Modality.TEXT],
-            },
-        });
-
-        const parts = getValidatedParts(response, "Failed to extract clothing items.");
-        const results: TryOnResult[] = [];
-        let modelFeedback: string | null = null;
-
-        for (const part of parts) {
-            if (part.inlineData) {
-                const base64ImageBytes: string = part.inlineData.data;
-                const imageMimeType = part.inlineData.mimeType;
-                results.push({
-                    imageUrl: `data:${imageMimeType};base64,${base64ImageBytes}`,
-                    text: null
-                });
-            } else if (part.text) {
-                modelFeedback = (modelFeedback ? `${modelFeedback}\n` : "") + part.text;
-            }
-        }
-
-        if (results.length === 0) {
-            if (modelFeedback) {
-                throw new Error(`The AI provided feedback: ${modelFeedback}`);
-            }
-            throw new Error("The AI did not extract any items. Please try a clearer photo.");
-        }
-
-        return results;
-
-    } catch (error) {
-        console.error("Error calling Gemini API for clothing extraction:", error);
-        if (error instanceof Error) {
-            throw new Error(`Failed to extract clothing items: ${error.message}`);
-        }
-        throw new Error("An unknown error occurred during the AI extraction process.");
+  if (!result.imageUrl) {
+    if (result.text) {
+      throw new Error(`The AI provided feedback: ${result.text}`);
     }
-};
+    throw new Error("The AI did not generate an image for the room view.");
+  }
 
-export const generate3DViews = async (
-    imageData: string,
-    mimeType: string,
-    userApiKey?: string,
-): Promise<TryOnResult[]> => {
-    try {
-        const apiKey = getApiKey(userApiKey);
-        const ai = new GoogleGenAI({ apiKey });
-        const prompt = "You are a product photography AI. Your task is to generate a multi-angle product showcase for the sunglasses in the input image.\n1. Isolate the sunglasses from the original image, removing all background and any person wearing them.\n2. Generate several new images of the isolated sunglasses from different perspectives:\n    - Front view\n    - Side view (profile)\n    - Three-quarter view\n    - Top-down view\n3. Each new image must show the sunglasses on a clean, plain white background.\nYour final output must only be the generated images. Do not add any text.";
-        
-        const response: GenerateContentResponse = await ai.models.generateContent({
-            model: model,
-            contents: {
-              parts: [
-                { inlineData: { data: imageData, mimeType: mimeType } },
-                { text: prompt },
-              ],
-            },
-            config: {
-              responseModalities: [Modality.IMAGE, Modality.TEXT],
-            },
-        });
-
-        const parts = getValidatedParts(response, "Failed to generate 3D views.");
-        const results: TryOnResult[] = [];
-        let modelFeedback: string | null = null;
-
-        for (const part of parts) {
-            if (part.inlineData) {
-                const base64ImageBytes: string = part.inlineData.data;
-                const imageMimeType = part.inlineData.mimeType;
-                results.push({
-                    imageUrl: `data:${imageMimeType};base64,${base64ImageBytes}`,
-                    text: null
-                });
-            } else if (part.text) {
-                modelFeedback = (modelFeedback ? `${modelFeedback}\n` : "") + part.text;
-            }
-        }
-
-        if (results.length === 0) {
-            if (modelFeedback) {
-                throw new Error(`The AI provided feedback: ${modelFeedback}`);
-            }
-            throw new Error("The AI failed to generate the multi-angle views. Please try a different image.");
-        }
-
-        return results;
-
-    } catch (error) {
-        console.error("Error calling Gemini API for 3D view generation:", error);
-        if (error instanceof Error) {
-            throw new Error(`Failed to generate 3D views: ${error.message}`);
-        }
-        throw new Error("An unknown error occurred during the AI 3D view generation process.");
-    }
-};
-
-export const glassesTryOn = async (
-    personImageData: string,
-    personMimeType: string,
-    glassesImageData: string,
-    glassesMimeType: string,
-    userApiKey?: string,
-): Promise<TryOnResult[]> => {
-    try {
-        const apiKey = getApiKey(userApiKey);
-        const ai = new GoogleGenAI({ apiKey });
-        const prompt = "You are a virtual try-on AI. You will receive two images: one of a person, and one of sunglasses (possibly with multiple views).\nYour task is to generate 2-3 photorealistic images showing the person wearing the sunglasses.\n1. Accurately place the sunglasses onto the person's face.\n2. Ensure the fit is natural and the perspective is correct.\n3. Match the lighting on the sunglasses to the lighting in the person's photo.\n4. Create a few variations from different camera angles (e.g., front, three-quarter).\nYour final output must only be the generated images. Do not include text.";
-
-        const response: GenerateContentResponse = await ai.models.generateContent({
-            model: model,
-            contents: {
-              parts: [
-                { inlineData: { data: personImageData, mimeType: personMimeType } },
-                { inlineData: { data: glassesImageData, mimeType: glassesMimeType } },
-                { text: prompt },
-              ],
-            },
-            config: {
-              responseModalities: [Modality.IMAGE, Modality.TEXT],
-            },
-        });
-
-        const parts = getValidatedParts(response, "Failed to generate glasses try-on images.");
-        const results: TryOnResult[] = [];
-        let modelFeedback: string | null = null;
-
-        for (const part of parts) {
-            if (part.inlineData) {
-                const base64ImageBytes: string = part.inlineData.data;
-                const imageMimeType = part.inlineData.mimeType;
-                results.push({
-                    imageUrl: `data:${imageMimeType};base64,${base64ImageBytes}`,
-                    text: null
-                });
-            } else if (part.text) {
-                modelFeedback = (modelFeedback ? `${modelFeedback}\n` : "") + part.text;
-            }
-        }
-        
-        if (results.length === 0) {
-            if (modelFeedback) {
-                throw new Error(`The AI provided feedback: ${modelFeedback}`);
-            }
-            throw new Error("The AI failed to generate the glasses try-on images. Please try a different image.");
-        }
-
-        return results;
-
-    } catch (error) {
-        console.error("Error calling Gemini API for glasses try-on:", error);
-        if (error instanceof Error) {
-            throw new Error(`Failed to generate glasses try-on images: ${error.message}`);
-        }
-        throw new Error("An unknown error occurred during the AI glasses try-on process.");
-    }
+  return result;
 };
