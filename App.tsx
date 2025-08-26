@@ -321,7 +321,7 @@ const App: React.FC = () => {
 
           {activeStudio === 'apparel' ? renderApparelStudio() : renderEyewearStudio()}
 
-          <Examples />
+          
           
           {error && (
             <div className="mt-8 bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg text-center" role="alert">
@@ -331,6 +331,8 @@ const App: React.FC = () => {
           )}
 
           <ApiKeyInput value={userApiKey} onChange={handleUserApiKeyChange} />
+
+          <Examples />
 
         </div>
       </main>
