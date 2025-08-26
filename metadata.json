@@ -1,0 +1,7 @@
+{
+  "name": "Winds AI Studio",
+  "description": "An application that uses AI to let you virtually try on clothes. Upload a photo of yourself and a photo of a clothing item to see how it looks.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
