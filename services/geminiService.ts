@@ -6,9 +6,9 @@ import type { TryOnResult, ClothingType } from '../types';
 const model = 'gemini-2.5-flash-image-preview';
 
 const getApiKey = (userApiKey?: string): string => {
-    const key = userApiKey || process.env.API_KEY;
+    const key = userApiKey;
     if (!key) {
-        throw new Error("Gemini API key is not configured. Please provide one in the UI or set the API_KEY environment variable.");
+        throw new Error("Gemini API key is not configured. Please enter your API key in the UI.");
     }
     return key;
 }

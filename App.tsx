@@ -99,7 +99,7 @@ const App: React.FC = () => {
       setError('Please upload both a person and a clothing photo.');
       return;
     }
-    if (!userApiKey && !process.env.API_KEY) {
+    if (!userApiKey) {
       setError('Please provide your Gemini API Key to use this feature.');
       return;
     }
@@ -123,7 +123,7 @@ const App: React.FC = () => {
       setError('Please upload both a person and a glasses photo.');
       return;
     }
-    if (!userApiKey && !process.env.API_KEY) {
+    if (!userApiKey) {
       setError('Please provide your Gemini API Key to use this feature.');
       return;
     }
@@ -147,7 +147,7 @@ const App: React.FC = () => {
         setError('Please upload an image to extract clothing from.');
         return;
     }
-    if (!userApiKey && !process.env.API_KEY) {
+    if (!userApiKey) {
       setError('Please provide your Gemini API Key to use this feature.');
       return;
     }
@@ -170,7 +170,7 @@ const App: React.FC = () => {
       setError('Please upload an image of the sunglasses.');
       return;
     }
-    if (!userApiKey && !process.env.API_KEY) {
+    if (!userApiKey) {
       setError('Please provide your Gemini API Key to use this feature.');
       return;
     }
