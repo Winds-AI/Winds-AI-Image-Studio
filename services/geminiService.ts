@@ -288,7 +288,7 @@ Ensure the layout in your rendering accurately reflects the floor plan. Output o
 export const generateRoomView = async (data: string, mimeType: string, userApiKey?: string): Promise<TryOnResult> => {
     const apiKey = getApiKey(userApiKey);
     const ai = new GoogleGenAI({ apiKey });
-    const prompt = "You are an expert interior designer. Given this cropped image of a room from a top-down floor plan, generate a photorealistic, first-person perspective view of what it would be like to stand inside that room. The view should match the style and furnishings shown in the top-down view. Output only the final image.";
+    const prompt = "You are an expert architectural visualizer. Your task is to transform this top-down view of a room into a photorealistic, eye-level, first-person perspective. Imagine you are standing inside this room and taking a photograph. The generated image must show the room from a human viewpoint, looking forward. It is crucial that you DO NOT output another top-down or bird's-eye view. The style and furniture from the input image must be accurately represented in the new perspective. Output only the final, first-person view image.";
 
     const response = await ai.models.generateContent({
         model: model,
