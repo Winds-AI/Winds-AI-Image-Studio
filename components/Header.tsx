@@ -18,10 +18,10 @@ export const Header: React.FC = () => {
           </h1>
         </div>
         <div className="flex justify-center items-center gap-6">
-                <a href="https://github.com/charliecyt" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors"><GithubIcon className="w-6 h-6" /></a>
-                <a href="https://x.com/charliecyt" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors"><XSocialIcon className="w-5 h-5" /></a>
-                <a href="https://www.linkedin.com/in/charliecyt/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors"><LinkedinIcon className="w-6 h-6" /></a>
-                <a href="https://www.npmjs.com/~charliecyt" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors"><NpmIcon className="w-6 h-6" /></a>
+        <a href="https://github.com/Winds-AI" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors"><GithubIcon className="w-6 h-6" /></a>
+                <a href="https://x.com/winds_ai" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors"><XSocialIcon className="w-5 h-5" /></a>
+                <a href="https://www.linkedin.com/in/meet-limbani/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors"><LinkedinIcon className="w-6 h-6" /></a>
+                <a href="https://www.npmjs.com/settings/winds-ai/packages" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors"><NpmIcon className="w-6 h-6" /></a>
             </div>
       </div>
     </header>
