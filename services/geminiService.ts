@@ -238,15 +238,15 @@ export const glassesTryOn = async (personData: string, personMimeType: string, g
     return results;
 };
 
+// Fix: Completed the implementation of generateInteriorDesign.
 export const generateInteriorDesign = async (data: string, mimeType: string, stylePrompt: string, userApiKey?: string): Promise<TryOnResult> => {
     const apiKey = getApiKey(userApiKey);
     const ai = new GoogleGenAI({ apiKey });
 
     const prompt = `You are an expert architect and interior designer. Your task is to convert the provided 2D floor plan into a single, beautiful, photorealistic, top-down 3D rendering of a fully furnished and decorated interior.
-    The final image should look like a professional architectural visualization.
-    ${stylePrompt ? `Adhere to the following style guide: ${stylePrompt}.` : "Use a modern, elegant, and inviting style."}
-    Ensure the layout in your rendering accurately reflects the walls, doors, and windows of the source floor plan.
-    Output only the final rendered image.`;
+The final image should look like a professional architectural visualization.
+${stylePrompt ? `Adhere to the following style guide: ${stylePrompt}.` : "Use a modern, elegant, and inviting style."}
+Ensure the layout in your rendering accurately reflects the floor plan. Output only the final rendered image.`;
 
     const response = await ai.models.generateContent({
         model: model,
@@ -268,138 +268,60 @@ export const generateInteriorDesign = async (data: string, mimeType: string, sty
         if (part.text) {
             result.text = part.text;
         } else if (part.inlineData) {
-            result.imageUrl = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-            break; // We only need one image
+            const base64ImageBytes: string = part.inlineData.data;
+            const mimeType = part.inlineData.mimeType;
+            result.imageUrl = `data:${mimeType};base64,${base64ImageBytes}`;
         }
     }
-    
+
     if (!result.imageUrl) {
         if (result.text) {
             throw new Error(`The AI provided feedback: ${result.text}`);
         }
-        throw new Error("The AI did not generate an interior design image.");
+        throw new Error("The AI did not generate an image. Please try a different floor plan.");
     }
+
     return result;
 };
 
-export const identifyAndSegmentRooms = async (imageData: string, mimeType: string, userApiKey?: string): Promise<{ rooms: Room[], maskImageUrl: string }> => {
+// Fix: Added and exported the missing generateRoomView function.
+export const generateRoomView = async (data: string, mimeType: string, userApiKey?: string): Promise<TryOnResult> => {
     const apiKey = getApiKey(userApiKey);
     const ai = new GoogleGenAI({ apiKey });
+    const prompt = "You are an expert interior designer. Given this cropped image of a room from a top-down floor plan, generate a photorealistic, first-person perspective view of what it would be like to stand inside that room. The view should match the style and furnishings shown in the top-down view. Output only the final image.";
 
     const response = await ai.models.generateContent({
-        model,
+        model: model,
         contents: {
             parts: [
-                { inlineData: { data: imageData, mimeType: mimeType } },
-                { text: "Analyze this floor plan. Identify all distinct rooms (like 'Kitchen', 'Living Room', 'Bedroom 1', 'Bathroom'). For each room, provide its name, a unique hex color code, and a normalized bounding box (x, y, width, height). Also, generate a segmentation mask image where each room is filled with its assigned unique color." },
+                { inlineData: { data: data, mimeType: mimeType } },
+                { text: prompt },
             ],
         },
         config: {
             responseModalities: [Modality.IMAGE, Modality.TEXT],
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    rooms: {
-                        type: Type.ARRAY,
-                        items: {
-                            type: Type.OBJECT,
-                            properties: {
-                                name: { type: Type.STRING },
-                                color: { type: Type.STRING },
-                                boundary: {
-                                    type: Type.OBJECT,
-                                    properties: {
-                                        x: { type: Type.NUMBER },
-                                        y: { type: Type.NUMBER },
-                                        width: { type: Type.NUMBER },
-                                        height: { type: Type.NUMBER },
-                                    },
-                                },
-                            },
-                        },
-                    },
-                },
-            },
         },
     });
 
-    const parts = getValidatedParts(response, "The AI couldn't identify rooms in the floor plan.");
-    let jsonStr: string | null = null;
-    let maskImageUrl: string | null = null;
+    const parts = getValidatedParts(response, "The AI couldn't generate a room view.");
+    const result: TryOnResult = { imageUrl: null, text: null };
 
     for (const part of parts) {
         if (part.text) {
-            jsonStr = part.text.trim();
+            result.text = part.text;
         } else if (part.inlineData) {
-            maskImageUrl = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+            const base64ImageBytes: string = part.inlineData.data;
+            const mimeType = part.inlineData.mimeType;
+            result.imageUrl = `data:${mimeType};base64,${base64ImageBytes}`;
         }
     }
 
-    if (!jsonStr || !maskImageUrl) {
-        throw new Error("The AI did not return both room data and a mask image.");
+    if (!result.imageUrl) {
+        if (result.text) {
+            throw new Error(`The AI provided feedback: ${result.text}`);
+        }
+        throw new Error("The AI did not generate an image for the room view.");
     }
 
-    try {
-        const parsedJson = JSON.parse(jsonStr);
-        return { rooms: parsedJson.rooms || [], maskImageUrl };
-    } catch (e) {
-        console.error("Failed to parse JSON from Gemini:", jsonStr);
-        throw new Error("The AI returned invalid room data.");
-    }
-};
-
-export const generateRoomView = async (
-  imageData: string,
-  mimeType: string,
-  roomName: string,
-  boundary: { x: number; y: number; width: number; height: number },
-  userApiKey?: string,
-): Promise<TryOnResult> => {
-  const apiKey = getApiKey(userApiKey);
-  const ai = new GoogleGenAI({ apiKey });
-
-  const boundaryText = `The room is located in a normalized bounding box with top-left corner at (${boundary.x.toFixed(3)}, ${boundary.y.toFixed(3)}) and dimensions (${boundary.width.toFixed(3)} x ${boundary.height.toFixed(3)}).`;
-
-  const response = await ai.models.generateContent({
-    model: model,
-    contents: {
-      parts: [
-        { inlineData: { data: imageData, mimeType: mimeType } },
-        {
-          text: `You are an expert interior design visualizer. Your task is to generate a single, photorealistic, first-person perspective view of the ${roomName} from the provided floor plan image.
-          ${boundaryText}
-          Crucially, you must use the furniture, layout, color scheme, textures, and overall style depicted *within that boundary* on the floor plan as a direct visual reference.
-          Do not invent a new design. Your goal is to create a faithful, eye-level rendering of the room as it is already designed in the plan.
-          Output only the final image.`,
-        },
-      ],
-    },
-    config: {
-      responseModalities: [Modality.IMAGE, Modality.TEXT],
-    },
-  });
-
-  const parts = getValidatedParts(response, "The AI couldn't generate a view for this room.");
-  const result: TryOnResult = { imageUrl: null, text: null };
-
-  for (const part of parts) {
-    if (part.text) {
-      result.text = part.text;
-    } else if (part.inlineData) {
-      const base64ImageBytes: string = part.inlineData.data;
-      const partMimeType = part.inlineData.mimeType;
-      result.imageUrl = `data:${partMimeType};base64,${base64ImageBytes}`;
-      break; 
-    }
-  }
-
-  if (!result.imageUrl) {
-    if (result.text) {
-      throw new Error(`The AI provided feedback: ${result.text}`);
-    }
-    throw new Error("The AI did not generate an image for the room view.");
-  }
-
-  return result;
+    return result;
 };

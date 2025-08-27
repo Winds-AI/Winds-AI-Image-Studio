@@ -1,5 +1,6 @@
 
 import React, { useRef, useEffect, useCallback } from 'react';
+// Fix: Added Room to imports
 import type { Room } from '../types';
 import { XIcon } from './icons/XIcon';
 

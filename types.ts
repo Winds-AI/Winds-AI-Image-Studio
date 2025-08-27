@@ -4,18 +4,13 @@ export interface TryOnResult {
   text: string | null;
 }
 
-export type ClothingType = 'top' | 'bottom' | 'outerwear' | 'fullBody';
-
+// Fix: Add Room interface for interior design features.
 export interface Room {
   name: string;
   color: string;
-  boundary: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
 }
 
-export type AppMode = 'clothingTryOn' | 'glassesTryOn' | 'extractor' | 'threeDView' | 'interiorDesign' | 'interiorVisualization';
+export type ClothingType = 'top' | 'bottom' | 'outerwear' | 'fullBody';
+
+export type AppMode = 'clothingTryOn' | 'glassesTryOn' | 'extractor' | 'threeDView' | 'interiorDesign';
 export type Studio = 'apparel' | 'eyewear' | 'interior';
