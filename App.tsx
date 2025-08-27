@@ -5,7 +5,7 @@ import { ResultDisplay } from './components/ResultDisplay';
 import { Header } from './components/Header';
 import { TryOnButton } from './components/TryOnButton';
 // Fix: Added generateRoomView to imports
-import { visualTryOn, extractClothingItems, generate3DViews, glassesTryOn, generateInteriorDesign, generateRoomView } from './services/geminiService';
+import { visualTryOn, extractClothingItems, generate3DViews, glassesTryOn, generateInteriorDesign, generateRoomView, generalImageEdit } from './services/geminiService';
 import type { ClothingType, TryOnResult, AppMode, Studio } from './types';
 import { ExtractorResultDisplay } from './components/ExtractorResultDisplay';
 import { ThreeDViewResultDisplay } from './components/ThreeDViewResultDisplay';
@@ -17,6 +17,7 @@ import { ApiKeyInput } from './components/ApiKeyInput';
 import { SelectionEditor } from './components/SelectionEditor';
 import { HomeIcon } from './components/icons/HomeIcon';
 import { ExamplesPage } from './pages/ExamplesPage';
+import { ImageEditingResultDisplay } from './components/ImageEditingResultDisplay';
 
 const App: React.FC = () => {
   // App view state
@@ -83,6 +84,12 @@ const App: React.FC = () => {
   const [interiorViewPrompt, setInteriorViewPrompt] = useState<string>("You are an expert architectural visualizer. Your task is to transform this top-down view of a room into a photorealistic, eye-level, first-person perspective. Imagine you are standing inside this room and taking a photograph. The generated image must show the room from a human viewpoint, looking forward. It is crucial that you DO NOT output another top-down or bird's-eye view. The style and furniture from the input image must be accurately represented in the new perspective. Output only the final, first-person view image.");
   const [interiorViewResult, setInteriorViewResult] = useState<TryOnResult | null>(null);
   const [isGeneratingInteriorView, setIsGeneratingInteriorView] = useState<boolean>(false);
+  
+  // Image Editing Mode State
+  const [editingImage, setEditingImage] = useState<string | null>(null);
+  const [editingPrompt, setEditingPrompt] = useState<string>("You are a professional photo editor. Apply the following edit to the image: Make the sky a dramatic sunset.");
+  const [editingResult, setEditingResult] = useState<TryOnResult | null>(null);
+  const [isEditing, setIsEditing] = useState<boolean>(false);
 
   useEffect(() => {
     try {
@@ -332,6 +339,32 @@ const App: React.FC = () => {
     }
   }, [userApiKey, interiorViewPrompt]);
 
+  const handleImageEdit = useCallback(async () => {
+    if (!editingImage) {
+      setError('Please upload an image to edit.');
+      return;
+    }
+    if (!userApiKey && !process.env.API_KEY) {
+      setError('Please provide your Gemini API Key to use this feature.');
+      return;
+    }
+    setError(null);
+    setEditingResult(null);
+    setIsEditing(true);
+    try {
+      const imageB64 = await imageToData(editingImage);
+      if (!imageB64) return;
+
+      const { mimeType, data } = extractMimeTypeAndData(imageB64);
+      const result = await generalImageEdit(data, mimeType, editingPrompt, userApiKey);
+      setEditingResult(result);
+    } catch (err) {
+      handleApiError(err);
+    } finally {
+      setIsEditing(false);
+    }
+  }, [editingImage, editingPrompt, userApiKey]);
+
   const handleStudioChange = (studio: Studio) => {
     setActiveStudio(studio);
     setError(null);
@@ -341,6 +374,8 @@ const App: React.FC = () => {
       setAppMode('threeDView');
     } else if (studio === 'interior') {
       setAppMode('interiorDesign');
+    } else if (studio === 'creative') {
+      setAppMode('imageEditing');
     }
   };
 
@@ -540,6 +575,31 @@ const App: React.FC = () => {
     );
   };
 
+  const renderImageEditingMode = () => (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+      <div className="bg-gray-800/50 p-6 rounded-2xl border border-gray-700 backdrop-blur-sm flex flex-col gap-6">
+        <h2 className="text-2xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-rose-500">General Image Editor</h2>
+        <ImageUploader id="editing-uploader" label="Upload Your Image" value={editingImage} onChange={setEditingImage} />
+        <div className="flex flex-col gap-2">
+            <label htmlFor="editing-prompt" className="font-semibold text-gray-300 text-center">Describe Your Edit</label>
+            <textarea
+                id="editing-prompt"
+                value={editingPrompt}
+                onChange={(e) => setEditingPrompt(e.target.value)}
+                rows={5}
+                className="w-full bg-gray-900 border border-gray-600 rounded-lg py-2 px-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500"
+            />
+        </div>
+        <div className="mt-2">
+          <TryOnButton onClick={handleImageEdit} disabled={!editingImage || isEditing} isLoading={isEditing} loadingText="Applying Edit...">Generate Image</TryOnButton>
+        </div>
+      </div>
+      <div className="bg-gray-800/50 p-6 rounded-2xl border border-gray-700 backdrop-blur-sm min-h-[400px] flex flex-col justify-center items-center">
+        <ImageEditingResultDisplay isLoading={isEditing} result={editingResult} />
+      </div>
+    </div>
+  );
+
   const renderActiveApparelMode = () => {
     switch (appMode) {
       case 'clothingTryOn': return renderClothingTryOnMode();
@@ -589,6 +649,15 @@ const App: React.FC = () => {
     </>
   );
 
+  const renderCreativeStudio = () => (
+    <>
+      <div className="flex flex-wrap justify-center border-b border-gray-700 mb-8">
+        <button className={`px-4 md:px-6 py-3 font-semibold text-base md:text-lg transition-colors duration-200 border-b-4 text-pink-400 border-pink-400`}>Image Editor</button>
+      </div>
+      {renderImageEditingMode()}
+    </>
+  );
+
   const renderStudio = () => (
     <main className="container mx-auto p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
@@ -601,15 +670,17 @@ const App: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex justify-center items-center bg-gray-800/50 border border-gray-700 rounded-full p-1.5 max-w-lg mx-auto mb-10 backdrop-blur-sm">
-          <button onClick={() => handleStudioChange('apparel')} className={`w-1/3 py-2.5 rounded-full font-bold transition-colors ${activeStudio === 'apparel' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:bg-gray-700'}`}>Apparel</button>
-          <button onClick={() => handleStudioChange('eyewear')} className={`w-1/3 py-2.5 rounded-full font-bold transition-colors ${activeStudio === 'eyewear' ? 'bg-yellow-600 text-white' : 'text-gray-400 hover:bg-gray-700'}`}>Eyewear</button>
-          <button onClick={() => handleStudioChange('interior')} className={`w-1/3 py-2.5 rounded-full font-bold transition-colors ${activeStudio === 'interior' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-700'}`}>Interior</button>
+        <div className="flex justify-center items-center bg-gray-800/50 border border-gray-700 rounded-full p-1.5 max-w-xl mx-auto mb-10 backdrop-blur-sm">
+          <button onClick={() => handleStudioChange('apparel')} className={`w-1/4 py-2.5 rounded-full font-bold transition-colors text-sm ${activeStudio === 'apparel' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:bg-gray-700'}`}>Apparel</button>
+          <button onClick={() => handleStudioChange('eyewear')} className={`w-1/4 py-2.5 rounded-full font-bold transition-colors text-sm ${activeStudio === 'eyewear' ? 'bg-yellow-600 text-white' : 'text-gray-400 hover:bg-gray-700'}`}>Eyewear</button>
+          <button onClick={() => handleStudioChange('interior')} className={`w-1/4 py-2.5 rounded-full font-bold transition-colors text-sm ${activeStudio === 'interior' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-700'}`}>Interior</button>
+          <button onClick={() => handleStudioChange('creative')} className={`w-1/4 py-2.5 rounded-full font-bold transition-colors text-sm ${activeStudio === 'creative' ? 'bg-rose-600 text-white' : 'text-gray-400 hover:bg-gray-700'}`}>Creative</button>
         </div>
 
         {activeStudio === 'apparel' && renderApparelStudio()}
         {activeStudio === 'eyewear' && renderEyewearStudio()}
         {activeStudio === 'interior' && renderInteriorStudio()}
+        {activeStudio === 'creative' && renderCreativeStudio()}
         
         {error && (
           <div className="mt-8 bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg text-center" role="alert">

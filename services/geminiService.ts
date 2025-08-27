@@ -1,7 +1,6 @@
-
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 import type { GenerateContentResponse, Part } from "@google/genai";
-import type { TryOnResult, ClothingType, Room } from '../types';
+import type { TryOnResult, Room } from '../types';
 
 const model = 'gemini-2.5-flash-image-preview';
 
@@ -54,250 +53,135 @@ function getValidatedParts(response: GenerateContentResponse, userFriendlyErrorP
     return parts;
 }
 
-
-const generateFinalImage = async (
-  personImageData: string,
-  personMimeType: string,
-  clothingImageData: string,
-  clothingMimeType: string,
-  prompt: string,
+const generateSingleImage = async (
+  parts: Part[],
   apiKey: string,
+  errorPrefix: string = "The AI couldn't generate an image."
 ): Promise<TryOnResult> => {
     const ai = new GoogleGenAI({ apiKey });
     const response: GenerateContentResponse = await ai.models.generateContent({
-        model: model,
-        contents: {
-          parts: [
-            { inlineData: { data: personImageData, mimeType: personMimeType } },
-            { inlineData: { data: clothingImageData, mimeType: clothingMimeType } },
-            { text: prompt },
-          ],
-        },
+        model,
+        contents: { parts },
         config: {
           responseModalities: [Modality.IMAGE, Modality.TEXT],
         },
     });
 
-    const parts = getValidatedParts(response, "The AI couldn't generate an image.");
+    const responseParts = getValidatedParts(response, errorPrefix);
     const result: TryOnResult = { imageUrl: null, text: null };
 
-    for (const part of parts) {
+    for (const part of responseParts) {
         if (part.text) {
             result.text = part.text;
         } else if (part.inlineData) {
             const base64ImageBytes: string = part.inlineData.data;
             const mimeType = part.inlineData.mimeType;
             result.imageUrl = `data:${mimeType};base64,${base64ImageBytes}`;
+            break; // We only need one image
         }
     }
     
     if (!result.imageUrl) {
-        // If the model returned an explanation instead of an image, use it as the error message.
         if (result.text) {
             throw new Error(`The AI provided feedback: ${result.text}`);
         }
-        // Fallback if the model returns parts, but no image part and no text.
         throw new Error("The AI did not generate an image. Please try a different one.");
     }
 
     return result;
 }
 
+const generateMultipleImages = async (
+  parts: Part[],
+  apiKey: string,
+  errorPrefix: string = "The AI couldn't generate images."
+): Promise<TryOnResult[]> => {
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await ai.models.generateContent({
+        model,
+        contents: { parts },
+        config: {
+            responseModalities: [Modality.IMAGE, Modality.TEXT],
+        },
+    });
+
+    const responseParts = getValidatedParts(response, errorPrefix);
+    const results: TryOnResult[] = [];
+    for (const part of responseParts) {
+        if (part.inlineData) {
+            results.push({
+                imageUrl: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`,
+                text: null,
+            });
+        }
+    }
+    if (results.length === 0) {
+        throw new Error("The AI did not generate any images. Try again or adjust the prompt.");
+    }
+    return results;
+}
+
 export const visualTryOn = (personImageData: string, personMimeType: string, clothingImageData: string, clothingMimeType: string, prompt: string, userApiKey?: string): Promise<TryOnResult> => {
     const apiKey = getApiKey(userApiKey);
-    return generateFinalImage(personImageData, personMimeType, clothingImageData, clothingMimeType, prompt, apiKey);
+    const parts: Part[] = [
+      { inlineData: { data: personImageData, mimeType: personMimeType } },
+      { inlineData: { data: clothingImageData, mimeType: clothingMimeType } },
+      { text: prompt },
+    ];
+    return generateSingleImage(parts, apiKey, "The AI couldn't generate the try-on image.");
 };
 
-export const extractClothingItems = async (imageData: string, mimeType: string, prompt: string, userApiKey?: string): Promise<TryOnResult[]> => {
+export const extractClothingItems = (imageData: string, mimeType: string, prompt: string, userApiKey?: string): Promise<TryOnResult[]> => {
     const apiKey = getApiKey(userApiKey);
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-        model: model,
-        contents: {
-            parts: [
-                { inlineData: { data: imageData, mimeType: mimeType } },
-                { text: prompt },
-            ],
-        },
-        config: {
-            responseModalities: [Modality.IMAGE, Modality.TEXT],
-        },
-    });
-
-    const parts = getValidatedParts(response, "The AI couldn't extract clothing items.");
-    const results: TryOnResult[] = [];
-    for (const part of parts) {
-        if (part.inlineData) {
-            results.push({
-                imageUrl: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`,
-                text: null
-            });
-        }
-    }
-
-    if (results.length === 0) {
-        const textPart = parts.find(p => p.text);
-        if (textPart && textPart.text) {
-            throw new Error(`The AI provided feedback: ${textPart.text}`);
-        }
-        throw new Error("The AI did not extract any clothing items.");
-    }
-    return results;
+    const parts: Part[] = [
+        { inlineData: { data: imageData, mimeType: mimeType } },
+        { text: prompt },
+    ];
+    return generateMultipleImages(parts, apiKey, "The AI couldn't extract clothing items.");
 };
 
-export const generate3DViews = async (imageData: string, mimeType: string, prompt: string, userApiKey?: string): Promise<TryOnResult[]> => {
+export const glassesTryOn = (personImageData: string, personMimeType: string, glassesImageData: string, glassesMimeType: string, prompt: string, userApiKey?: string): Promise<TryOnResult[]> => {
     const apiKey = getApiKey(userApiKey);
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-        model: model,
-        contents: {
-            parts: [
-                { inlineData: { data: imageData, mimeType: mimeType } },
-                { text: prompt },
-            ],
-        },
-        config: {
-            responseModalities: [Modality.IMAGE, Modality.TEXT],
-        },
-    });
-    
-    const parts = getValidatedParts(response, "The AI couldn't generate 3D views.");
-    const results: TryOnResult[] = [];
-    for (const part of parts) {
-        if (part.inlineData) {
-            results.push({
-                imageUrl: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`,
-                text: null
-            });
-        }
-    }
-    
-    if (results.length === 0) {
-        const textPart = parts.find(p => p.text);
-        if (textPart && textPart.text) {
-            throw new Error(`The AI provided feedback: ${textPart.text}`);
-        }
-        throw new Error("The AI did not generate any views.");
-    }
-    return results;
+    const parts: Part[] = [
+        { inlineData: { data: personImageData, mimeType: personMimeType } },
+        { inlineData: { data: glassesImageData, mimeType: glassesMimeType } },
+        { text: prompt },
+    ];
+    return generateMultipleImages(parts, apiKey, "The AI couldn't generate the glasses try-on.");
+}
+
+export const generate3DViews = (imageData: string, mimeType: string, prompt: string, userApiKey?: string): Promise<TryOnResult[]> => {
+    const apiKey = getApiKey(userApiKey);
+    const parts: Part[] = [
+        { inlineData: { data: imageData, mimeType: mimeType } },
+        { text: prompt },
+    ];
+    return generateMultipleImages(parts, apiKey, "The AI couldn't generate 3D views.");
+}
+
+export const generateInteriorDesign = (imageData: string, mimeType: string, prompt: string, userApiKey?: string): Promise<TryOnResult> => {
+    const apiKey = getApiKey(userApiKey);
+    const parts: Part[] = [
+        { inlineData: { data: imageData, mimeType: mimeType } },
+        { text: prompt },
+    ];
+    return generateSingleImage(parts, apiKey, "The AI couldn't generate the interior design.");
 };
 
-export const glassesTryOn = async (personData: string, personMimeType: string, glassesData: string, glassesMimeType: string, prompt: string, userApiKey?: string): Promise<TryOnResult[]> => {
+export const generateRoomView = (imageData: string, mimeType: string, prompt: string, userApiKey?: string): Promise<TryOnResult> => {
     const apiKey = getApiKey(userApiKey);
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-        model: model,
-        contents: {
-            parts: [
-                { inlineData: { data: personData, mimeType: personMimeType } },
-                { inlineData: { data: glassesData, mimeType: glassesMimeType } },
-                { text: prompt },
-            ],
-        },
-        config: {
-            responseModalities: [Modality.IMAGE, Modality.TEXT],
-        },
-    });
-
-    const parts = getValidatedParts(response, "The AI couldn't perform the glasses try-on.");
-    const results: TryOnResult[] = [];
-    for (const part of parts) {
-        if (part.inlineData) {
-            results.push({
-                imageUrl: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`,
-                text: null
-            });
-        }
-    }
-    
-    if (results.length === 0) {
-        const textPart = parts.find(p => p.text);
-        if (textPart && textPart.text) {
-            throw new Error(`The AI provided feedback: ${textPart.text}`);
-        }
-        throw new Error("The AI did not generate any try-on images.");
-    }
-    return results;
+    const parts: Part[] = [
+        { inlineData: { data: imageData, mimeType: mimeType } },
+        { text: prompt },
+    ];
+    return generateSingleImage(parts, apiKey, "The AI couldn't generate the room view.");
 };
 
-// Fix: Completed the implementation of generateInteriorDesign.
-export const generateInteriorDesign = async (data: string, mimeType: string, prompt: string, userApiKey?: string): Promise<TryOnResult> => {
+export const generalImageEdit = (imageData: string, mimeType: string, prompt: string, userApiKey?: string): Promise<TryOnResult> => {
     const apiKey = getApiKey(userApiKey);
-    const ai = new GoogleGenAI({ apiKey });
-
-    const response = await ai.models.generateContent({
-        model: model,
-        contents: {
-            parts: [
-                { inlineData: { data: data, mimeType: mimeType } },
-                { text: prompt },
-            ],
-        },
-        config: {
-            responseModalities: [Modality.IMAGE, Modality.TEXT],
-        },
-    });
-
-    const parts = getValidatedParts(response, "The AI couldn't generate an interior design.");
-    const result: TryOnResult = { imageUrl: null, text: null };
-
-    for (const part of parts) {
-        if (part.text) {
-            result.text = part.text;
-        } else if (part.inlineData) {
-            const base64ImageBytes: string = part.inlineData.data;
-            const mimeType = part.inlineData.mimeType;
-            result.imageUrl = `data:${mimeType};base64,${base64ImageBytes}`;
-        }
-    }
-
-    if (!result.imageUrl) {
-        if (result.text) {
-            throw new Error(`The AI provided feedback: ${result.text}`);
-        }
-        throw new Error("The AI did not generate an image. Please try a different floor plan.");
-    }
-
-    return result;
-};
-
-// Fix: Added and exported the missing generateRoomView function.
-export const generateRoomView = async (data: string, mimeType: string, prompt: string, userApiKey?: string): Promise<TryOnResult> => {
-    const apiKey = getApiKey(userApiKey);
-    const ai = new GoogleGenAI({ apiKey });
-
-    const response = await ai.models.generateContent({
-        model: model,
-        contents: {
-            parts: [
-                { inlineData: { data: data, mimeType: mimeType } },
-                { text: prompt },
-            ],
-        },
-        config: {
-            responseModalities: [Modality.IMAGE, Modality.TEXT],
-        },
-    });
-
-    const parts = getValidatedParts(response, "The AI couldn't generate a room view.");
-    const result: TryOnResult = { imageUrl: null, text: null };
-
-    for (const part of parts) {
-        if (part.text) {
-            result.text = part.text;
-        } else if (part.inlineData) {
-            const base64ImageBytes: string = part.inlineData.data;
-            const mimeType = part.inlineData.mimeType;
-            result.imageUrl = `data:${mimeType};base64,${base64ImageBytes}`;
-        }
-    }
-
-    if (!result.imageUrl) {
-        if (result.text) {
-            throw new Error(`The AI provided feedback: ${result.text}`);
-        }
-        throw new Error("The AI did not generate an image for the room view.");
-    }
-
-    return result;
+    const parts: Part[] = [
+        { inlineData: { data: imageData, mimeType: mimeType } },
+        { text: prompt },
+    ];
+    return generateSingleImage(parts, apiKey, "The AI couldn't edit the image.");
 };

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ShirtIcon } from './icons/ShirtIcon';
 import { GlassesIcon } from './icons/GlassesIcon';
@@ -7,9 +6,11 @@ import { GithubIcon } from './icons/GithubIcon';
 import { XSocialIcon } from './icons/XSocialIcon';
 import { LinkedinIcon } from './icons/LinkedinIcon';
 import { NpmIcon } from './icons/NpmIcon';
+import { SparklesIcon } from './icons/SparklesIcon';
+import type { Studio } from '../types';
 
 interface HeaderProps {
-    activeStudio: 'apparel' | 'eyewear' | 'interior';
+    activeStudio: Studio;
     onShowExamples: () => void;
 }
 
@@ -26,6 +27,10 @@ export const Header: React.FC<HeaderProps> = ({ activeStudio, onShowExamples }) 
     interior: {
       icon: <HomeIcon className="w-6 h-6 text-white" />,
       gradient: 'from-blue-500 to-cyan-600',
+    },
+    creative: {
+      icon: <SparklesIcon className="w-6 h-6 text-white" />,
+      gradient: 'from-rose-500 to-pink-600',
     },
   };
 
@@ -45,9 +50,9 @@ export const Header: React.FC<HeaderProps> = ({ activeStudio, onShowExamples }) 
         <div className="flex items-center gap-6">
             <button 
               onClick={onShowExamples}
-              className="font-semibold text-black transition-colors px-3 py-2 rounded-md bg-teal-400"
+              className="font-semibold text-gray-300 hover:text-white transition-colors px-3 py-2 rounded-md"
             >
-              Examples
+              Workflows
             </button>
             <div className="h-6 w-px bg-gray-600"></div>
             <a href="https://github.com/Winds-AI" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors"><GithubIcon className="w-6 h-6" /></a>

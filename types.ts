@@ -12,5 +12,5 @@ export interface Room {
 
 export type ClothingType = 'top' | 'bottom' | 'outerwear' | 'fullBody';
 
-export type AppMode = 'clothingTryOn' | 'glassesTryOn' | 'extractor' | 'threeDView' | 'interiorDesign';
-export type Studio = 'apparel' | 'eyewear' | 'interior';
+export type AppMode = 'clothingTryOn' | 'glassesTryOn' | 'extractor' | 'threeDView' | 'interiorDesign' | 'imageEditing';
+export type Studio = 'apparel' | 'eyewear' | 'interior' | 'creative';
