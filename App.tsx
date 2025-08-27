@@ -25,26 +25,46 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [userApiKey, setUserApiKey] = useState<string>('');
 
+  const getPromptForClothingType = (clothingType: ClothingType): string => {
+    const basePrompt = "You are an expert digital stylist. Your primary goal is to create a photorealistic image of the person from the first image wearing the clothing item from the second image. Ensure the fit, drape, texture, and lighting are consistent with the original photo. Output only the final edited image.";
+    switch (clothingType) {
+        case 'top':
+            return `Task: Replace the person's existing top (shirt, t-shirt, blouse, etc.) with the clothing item from the second image. Do not alter their pants, skirt, or other clothing unless necessary for a natural look. ${basePrompt}`;
+        case 'bottom':
+            return `Task: Replace the person's existing bottoms (pants, skirt, shorts, etc.) with the clothing item from the second image. Do not alter their top unless necessary for a natural look (e.g., tucking in a shirt). ${basePrompt}`;
+        case 'outerwear':
+            return `Task: Place the outerwear item from the second image over the person's existing clothes. Ensure it layers naturally. ${basePrompt}`;
+        case 'fullBody':
+            return `Task: Replace the person's existing outfit with the full-body item (dress, jumpsuit, etc.) from the second image. ${basePrompt}`;
+        default:
+            return basePrompt;
+    }
+  };
+
   // Clothing Try-On Mode State
   const [personImageForClothing, setPersonImageForClothing] = useState<string | null>(null);
   const [clothingItemImage, setClothingItemImage] = useState<string | null>(null);
   const [clothingType, setClothingType] = useState<ClothingType>('top');
+  const [clothingTryOnPrompt, setClothingTryOnPrompt] = useState<string>(getPromptForClothingType('top'));
   const [clothingTryOnResult, setClothingTryOnResult] = useState<TryOnResult | null>(null);
   const [isTryingOnClothing, setIsTryingOnClothing] = useState<boolean>(false);
 
   // Glasses Try-On Mode State
   const [personImageForGlasses, setPersonImageForGlasses] = useState<string | null>(null);
   const [glassesImage, setGlassesImage] = useState<string | null>(null);
+  const [glassesTryOnPrompt, setGlassesTryOnPrompt] = useState<string>("You are an expert digital stylist specializing in eyewear. The first image is a person. The second image is a style sheet of sunglasses from multiple angles. Your task is to create two photorealistic images of the person wearing the sunglasses. One from a frontal view, and one from a slight side (three-quarter) view. Ensure the fit, perspective, and lighting are realistic. Output only the two final edited images.");
   const [glassesTryOnResults, setGlassesTryOnResults] = useState<TryOnResult[] | null>(null);
   const [isTryingOnGlasses, setIsTryingOnGlasses] = useState<boolean>(false);
 
   // Extractor Mode State
   const [extractorImage, setExtractorImage] = useState<string | null>(null);
+  const [extractorPrompt, setExtractorPrompt] = useState<string>("You are an expert at image segmentation. Identify every distinct clothing item (like shirts, pants, jackets, shoes, hats) in the image. For each item you find, create a new image that contains only that single item on a transparent background. Output all the generated images.");
   const [extractedItems, setExtractedItems] = useState<TryOnResult[] | null>(null);
   const [isExtracting, setIsExtracting] = useState<boolean>(false);
 
   // 3D View Mode State
   const [threeDViewImage, setThreeDViewImage] = useState<string | null>(null);
+  const [threeDViewPrompt, setThreeDViewPrompt] = useState<string>("Given this single image of a product (sunglasses), generate a style sheet of multiple photorealistic views from different angles: front, side, three-quarter, and top-down. Output each view as a separate image.");
   const [threeDViewResults, setThreeDViewResults] = useState<TryOnResult[] | null>(null);
   const [isGenerating3DView, setIsGenerating3DView] = useState<boolean>(false);
 
@@ -52,11 +72,12 @@ const App: React.FC = () => {
   const [floorPlanImage, setFloorPlanImage] = useState<string | null>(null);
   const [furnishedPlanImage, setFurnishedPlanImage] = useState<string | null>(null);
   const [interiorSourceTab, setInteriorSourceTab] = useState<'generate' | 'upload'>('generate');
-  const [stylePrompt, setStylePrompt] = useState<string>('');
+  const [interiorDesignPrompt, setInteriorDesignPrompt] = useState<string>('You are an expert architect and interior designer. Your task is to convert the provided 2D floor plan into a single, beautiful, photorealistic, top-down 3D rendering of a fully furnished and decorated interior.\nThe final image should look like a professional architectural visualization.\nUse a modern, elegant, and inviting style.\nEnsure the layout in your rendering accurately reflects the floor plan. Output only the final rendered image.');
   const [interiorDesignResult, setInteriorDesignResult] = useState<TryOnResult | null>(null);
   const [isGeneratingInterior, setIsGeneratingInterior] = useState<boolean>(false);
 
   // Interior View Mode State
+  const [interiorViewPrompt, setInteriorViewPrompt] = useState<string>("You are an expert architectural visualizer. Your task is to transform this top-down view of a room into a photorealistic, eye-level, first-person perspective. Imagine you are standing inside this room and taking a photograph. The generated image must show the room from a human viewpoint, looking forward. It is crucial that you DO NOT output another top-down or bird's-eye view. The style and furniture from the input image must be accurately represented in the new perspective. Output only the final, first-person view image.");
   const [interiorViewResult, setInteriorViewResult] = useState<TryOnResult | null>(null);
   const [isGeneratingInteriorView, setIsGeneratingInteriorView] = useState<boolean>(false);
 
@@ -70,6 +91,11 @@ const App: React.FC = () => {
         console.error("Could not access local storage:", e);
     }
   }, []);
+  
+  useEffect(() => {
+    setClothingTryOnPrompt(getPromptForClothingType(clothingType));
+  }, [clothingType]);
+
 
   const handleUserApiKeyChange = (key: string) => {
       setUserApiKey(key);
@@ -147,14 +173,14 @@ const App: React.FC = () => {
 
       const { mimeType: personMimeType, data: personData } = extractMimeTypeAndData(personImageB64);
       const { mimeType: clothingMimeType, data: clothingData } = extractMimeTypeAndData(clothingImageB64);
-      const result = await visualTryOn(personData, personMimeType, clothingData, clothingMimeType, clothingType, userApiKey);
+      const result = await visualTryOn(personData, personMimeType, clothingData, clothingMimeType, clothingTryOnPrompt, userApiKey);
       setClothingTryOnResult(result);
     } catch (err) {
       handleApiError(err);
     } finally {
       setIsTryingOnClothing(false);
     }
-  }, [personImageForClothing, clothingItemImage, clothingType, userApiKey]);
+  }, [personImageForClothing, clothingItemImage, clothingTryOnPrompt, userApiKey]);
   
   const handleGlassesTryOn = useCallback(async () => {
     if (!personImageForGlasses || !glassesImage) {
@@ -177,14 +203,14 @@ const App: React.FC = () => {
 
       const { mimeType: personMimeType, data: personData } = extractMimeTypeAndData(personImageB64);
       const { mimeType: glassesMimeType, data: glassesData } = extractMimeTypeAndData(glassesImageB64);
-      const results = await glassesTryOn(personData, personMimeType, glassesData, glassesMimeType, userApiKey);
+      const results = await glassesTryOn(personData, personMimeType, glassesData, glassesMimeType, glassesTryOnPrompt, userApiKey);
       setGlassesTryOnResults(results);
     } catch (err) {
         handleApiError(err);
     } finally {
         setIsTryingOnGlasses(false);
     }
-  }, [personImageForGlasses, glassesImage, userApiKey]);
+  }, [personImageForGlasses, glassesImage, glassesTryOnPrompt, userApiKey]);
 
   const handleExtractItems = useCallback(async () => {
     if (!extractorImage) {
@@ -202,14 +228,14 @@ const App: React.FC = () => {
         const imageB64 = await imageToData(extractorImage);
         if(!imageB64) return;
         const { mimeType, data } = extractMimeTypeAndData(imageB64);
-        const results = await extractClothingItems(data, mimeType, userApiKey);
+        const results = await extractClothingItems(data, mimeType, extractorPrompt, userApiKey);
         setExtractedItems(results);
     } catch (err) {
         handleApiError(err);
     } finally {
         setIsExtracting(false);
     }
-  }, [extractorImage, userApiKey]);
+  }, [extractorImage, extractorPrompt, userApiKey]);
 
   const handleGenerate3DView = useCallback(async () => {
     if (!threeDViewImage) {
@@ -227,14 +253,15 @@ const App: React.FC = () => {
       const imageB64 = await imageToData(threeDViewImage);
       if (!imageB64) return;
       const { mimeType, data } = extractMimeTypeAndData(imageB64);
-      const results = await generate3DViews(data, mimeType, userApiKey);
+      const results = await generate3DViews(data, mimeType, threeDViewPrompt, userApiKey);
       setThreeDViewResults(results);
-    } catch (err) {
+    } catch (err)
+ {
       handleApiError(err);
     } finally {
       setIsGenerating3DView(false);
     }
-  }, [threeDViewImage, userApiKey]);
+  }, [threeDViewImage, threeDViewPrompt, userApiKey]);
 
   const handleFloorPlanUpload = (image: string | null) => {
     setFloorPlanImage(image);
@@ -270,14 +297,14 @@ const App: React.FC = () => {
         const imageB64 = await imageToData(floorPlanImage);
         if(!imageB64) return;
         const { mimeType, data } = extractMimeTypeAndData(imageB64);
-        const result = await generateInteriorDesign(data, mimeType, stylePrompt, userApiKey);
+        const result = await generateInteriorDesign(data, mimeType, interiorDesignPrompt, userApiKey);
         setInteriorDesignResult(result);
     } catch (err) {
         handleApiError(err);
     } finally {
         setIsGeneratingInterior(false);
     }
-  }, [floorPlanImage, stylePrompt, userApiKey]);
+  }, [floorPlanImage, interiorDesignPrompt, userApiKey]);
 
   const handleGenerateInteriorView = useCallback(async (selectionDataUrl: string) => {
     if (!selectionDataUrl) {
@@ -293,14 +320,14 @@ const App: React.FC = () => {
     setIsGeneratingInteriorView(true);
     try {
       const { mimeType, data } = extractMimeTypeAndData(selectionDataUrl);
-      const result = await generateRoomView(data, mimeType, userApiKey);
+      const result = await generateRoomView(data, mimeType, interiorViewPrompt, userApiKey);
       setInteriorViewResult(result);
     } catch (err) {
       handleApiError(err);
     } finally {
       setIsGeneratingInteriorView(false);
     }
-  }, [userApiKey]);
+  }, [userApiKey, interiorViewPrompt]);
 
   const handleStudioChange = (studio: Studio) => {
     setActiveStudio(studio);
@@ -323,6 +350,16 @@ const App: React.FC = () => {
           <ImageUploader id="clothing-uploader" label="Upload Clothing Item" value={clothingItemImage} onChange={setClothingItemImage} />
         </div>
         <ClothingTypeSelector value={clothingType} onChange={setClothingType} />
+        <div className="flex flex-col gap-2">
+            <label htmlFor="clothing-prompt" className="font-semibold text-gray-300 text-center">Customize Prompt (optional)</label>
+            <textarea
+                id="clothing-prompt"
+                value={clothingTryOnPrompt}
+                onChange={(e) => setClothingTryOnPrompt(e.target.value)}
+                rows={5}
+                className="w-full bg-gray-900 border border-gray-600 rounded-lg py-2 px-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
+        </div>
         <div className="mt-2">
           <TryOnButton onClick={handleClothingTryOn} disabled={!personImageForClothing || !clothingItemImage || isTryingOnClothing} isLoading={isTryingOnClothing} loadingText="Generating...">Generate Look</TryOnButton>
         </div>
@@ -342,6 +379,16 @@ const App: React.FC = () => {
                 <ImageUploader id="person-glasses-uploader" label="Upload Your Photo" value={personImageForGlasses} onChange={setPersonImageForGlasses} />
                 <ImageUploader id="glasses-uploader" label="Upload Glasses Photo" value={glassesImage} onChange={setGlassesImage} />
             </div>
+            <div className="flex flex-col gap-2 mt-6">
+                <label htmlFor="glasses-prompt" className="font-semibold text-gray-300 text-center">Customize Prompt (optional)</label>
+                <textarea
+                    id="glasses-prompt"
+                    value={glassesTryOnPrompt}
+                    onChange={(e) => setGlassesTryOnPrompt(e.target.value)}
+                    rows={5}
+                    className="w-full bg-gray-900 border border-gray-600 rounded-lg py-2 px-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+            </div>
             <div className="mt-8">
                 <TryOnButton onClick={handleGlassesTryOn} disabled={!personImageForGlasses || !glassesImage || isTryingOnGlasses} isLoading={isTryingOnGlasses} loadingText="Generating...">Generate Views</TryOnButton>
             </div>
@@ -360,6 +407,16 @@ const App: React.FC = () => {
         <div className="grid grid-cols-1 gap-6">
           <ImageUploader id="extractor-uploader" label="Upload Full Outfit Photo" value={extractorImage} onChange={setExtractorImage} />
         </div>
+        <div className="flex flex-col gap-2 mt-6">
+            <label htmlFor="extractor-prompt" className="font-semibold text-gray-300 text-center">Customize Prompt (optional)</label>
+            <textarea
+                id="extractor-prompt"
+                value={extractorPrompt}
+                onChange={(e) => setExtractorPrompt(e.target.value)}
+                rows={5}
+                className="w-full bg-gray-900 border border-gray-600 rounded-lg py-2 px-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            />
+        </div>
         <div className="mt-8">
           <TryOnButton onClick={handleExtractItems} disabled={!extractorImage || isExtracting} isLoading={isExtracting} loadingText="Extracting...">Extract Items</TryOnButton>
         </div>
@@ -377,6 +434,16 @@ const App: React.FC = () => {
         <p className="text-center text-gray-400 -mt-4 mb-6">Upload a photo of sunglasses to generate multiple views.</p>
         <div className="grid grid-cols-1 gap-6">
           <ImageUploader id="3d-view-uploader" label="Upload Sunglasses Photo" value={threeDViewImage} onChange={setThreeDViewImage} />
+        </div>
+        <div className="flex flex-col gap-2 mt-6">
+            <label htmlFor="3d-prompt" className="font-semibold text-gray-300 text-center">Customize Prompt (optional)</label>
+            <textarea
+                id="3d-prompt"
+                value={threeDViewPrompt}
+                onChange={(e) => setThreeDViewPrompt(e.target.value)}
+                rows={5}
+                className="w-full bg-gray-900 border border-gray-600 rounded-lg py-2 px-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
         </div>
         <div className="mt-8">
           <TryOnButton onClick={handleGenerate3DView} disabled={!threeDViewImage || isGenerating3DView} isLoading={isGenerating3DView} loadingText="Generating...">Generate Views</TryOnButton>
@@ -415,13 +482,12 @@ const App: React.FC = () => {
                     <>
                         <ImageUploader id="floor-plan-uploader" label="Upload 2D Floor Plan" value={floorPlanImage} onChange={handleFloorPlanUpload} />
                         <div className="flex flex-col gap-2">
-                            <label htmlFor="style-prompt" className="font-semibold text-gray-300 text-center">Describe your desired style (optional)</label>
-                            <input
-                                id="style-prompt"
-                                type="text"
-                                value={stylePrompt}
-                                onChange={(e) => setStylePrompt(e.target.value)}
-                                placeholder="e.g., Modern, Minimalist, Scandinavian"
+                            <label htmlFor="interior-design-prompt" className="font-semibold text-gray-300 text-center">Design Prompt</label>
+                            <textarea
+                                id="interior-design-prompt"
+                                value={interiorDesignPrompt}
+                                onChange={(e) => setInteriorDesignPrompt(e.target.value)}
+                                rows={6}
                                 className="w-full bg-gray-900 border border-gray-600 rounded-lg py-2 px-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                         </div>
@@ -447,6 +513,16 @@ const App: React.FC = () => {
                             onGenerateView={handleGenerateInteriorView}
                             isGenerating={isGeneratingInteriorView}
                         />
+                        <div className="w-full flex flex-col items-center gap-2 max-w-lg">
+                            <label htmlFor="interior-view-prompt" className="font-semibold text-gray-300 text-center">First-Person View Prompt</label>
+                            <textarea
+                                id="interior-view-prompt"
+                                value={interiorViewPrompt}
+                                onChange={(e) => setInteriorViewPrompt(e.target.value)}
+                                rows={6}
+                                className="w-full bg-gray-900 border border-gray-600 rounded-lg py-2 px-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                            />
+                        </div>
                         <InteriorViewResultDisplay isLoading={isGeneratingInteriorView} result={interiorViewResult} />
                     </div>
                 ) : (

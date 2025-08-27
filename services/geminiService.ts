@@ -103,30 +103,12 @@ const generateFinalImage = async (
     return result;
 }
 
-const getPromptForClothingType = (clothingType: ClothingType): string => {
-    const basePrompt = "You are an expert digital stylist. Your primary goal is to create a photorealistic image of the person from the first image wearing the clothing item from the second image. Ensure the fit, drape, texture, and lighting are consistent with the original photo. Output only the final edited image.";
-
-    switch (clothingType) {
-        case 'top':
-            return `Task: Replace the person's existing top (shirt, t-shirt, blouse, etc.) with the clothing item from the second image. Do not alter their pants, skirt, or other clothing unless necessary for a natural look. ${basePrompt}`;
-        case 'bottom':
-            return `Task: Replace the person's existing bottoms (pants, skirt, shorts, etc.) with the clothing item from the second image. Do not alter their top unless necessary for a natural look (e.g., tucking in a shirt). ${basePrompt}`;
-        case 'outerwear':
-            return `Task: Place the outerwear item from the second image over the person's existing clothes. Ensure it layers naturally. ${basePrompt}`;
-        case 'fullBody':
-            return `Task: Replace the person's existing outfit with the full-body item (dress, jumpsuit, etc.) from the second image. ${basePrompt}`;
-        default:
-            return basePrompt;
-    }
-};
-
-export const visualTryOn = (personImageData: string, personMimeType: string, clothingImageData: string, clothingMimeType: string, clothingType: ClothingType, userApiKey?: string): Promise<TryOnResult> => {
+export const visualTryOn = (personImageData: string, personMimeType: string, clothingImageData: string, clothingMimeType: string, prompt: string, userApiKey?: string): Promise<TryOnResult> => {
     const apiKey = getApiKey(userApiKey);
-    const prompt = getPromptForClothingType(clothingType);
     return generateFinalImage(personImageData, personMimeType, clothingImageData, clothingMimeType, prompt, apiKey);
 };
 
-export const extractClothingItems = async (imageData: string, mimeType: string, userApiKey?: string): Promise<TryOnResult[]> => {
+export const extractClothingItems = async (imageData: string, mimeType: string, prompt: string, userApiKey?: string): Promise<TryOnResult[]> => {
     const apiKey = getApiKey(userApiKey);
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
@@ -134,7 +116,7 @@ export const extractClothingItems = async (imageData: string, mimeType: string, 
         contents: {
             parts: [
                 { inlineData: { data: imageData, mimeType: mimeType } },
-                { text: "You are an expert at image segmentation. Identify every distinct clothing item (like shirts, pants, jackets, shoes, hats) in the image. For each item you find, create a new image that contains only that single item on a transparent background. Output all the generated images." },
+                { text: prompt },
             ],
         },
         config: {
@@ -163,7 +145,7 @@ export const extractClothingItems = async (imageData: string, mimeType: string, 
     return results;
 };
 
-export const generate3DViews = async (imageData: string, mimeType: string, userApiKey?: string): Promise<TryOnResult[]> => {
+export const generate3DViews = async (imageData: string, mimeType: string, prompt: string, userApiKey?: string): Promise<TryOnResult[]> => {
     const apiKey = getApiKey(userApiKey);
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
@@ -171,7 +153,7 @@ export const generate3DViews = async (imageData: string, mimeType: string, userA
         contents: {
             parts: [
                 { inlineData: { data: imageData, mimeType: mimeType } },
-                { text: "Given this single image of a product (sunglasses), generate a style sheet of multiple photorealistic views from different angles: front, side, three-quarter, and top-down. Output each view as a separate image." },
+                { text: prompt },
             ],
         },
         config: {
@@ -200,7 +182,7 @@ export const generate3DViews = async (imageData: string, mimeType: string, userA
     return results;
 };
 
-export const glassesTryOn = async (personData: string, personMimeType: string, glassesData: string, glassesMimeType: string, userApiKey?: string): Promise<TryOnResult[]> => {
+export const glassesTryOn = async (personData: string, personMimeType: string, glassesData: string, glassesMimeType: string, prompt: string, userApiKey?: string): Promise<TryOnResult[]> => {
     const apiKey = getApiKey(userApiKey);
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
@@ -209,7 +191,7 @@ export const glassesTryOn = async (personData: string, personMimeType: string, g
             parts: [
                 { inlineData: { data: personData, mimeType: personMimeType } },
                 { inlineData: { data: glassesData, mimeType: glassesMimeType } },
-                { text: "You are an expert digital stylist specializing in eyewear. The first image is a person. The second image is a style sheet of sunglasses from multiple angles. Your task is to create two photorealistic images of the person wearing the sunglasses. One from a frontal view, and one from a slight side (three-quarter) view. Ensure the fit, perspective, and lighting are realistic. Output only the two final edited images." },
+                { text: prompt },
             ],
         },
         config: {
@@ -239,14 +221,9 @@ export const glassesTryOn = async (personData: string, personMimeType: string, g
 };
 
 // Fix: Completed the implementation of generateInteriorDesign.
-export const generateInteriorDesign = async (data: string, mimeType: string, stylePrompt: string, userApiKey?: string): Promise<TryOnResult> => {
+export const generateInteriorDesign = async (data: string, mimeType: string, prompt: string, userApiKey?: string): Promise<TryOnResult> => {
     const apiKey = getApiKey(userApiKey);
     const ai = new GoogleGenAI({ apiKey });
-
-    const prompt = `You are an expert architect and interior designer. Your task is to convert the provided 2D floor plan into a single, beautiful, photorealistic, top-down 3D rendering of a fully furnished and decorated interior.
-The final image should look like a professional architectural visualization.
-${stylePrompt ? `Adhere to the following style guide: ${stylePrompt}.` : "Use a modern, elegant, and inviting style."}
-Ensure the layout in your rendering accurately reflects the floor plan. Output only the final rendered image.`;
 
     const response = await ai.models.generateContent({
         model: model,
@@ -285,10 +262,9 @@ Ensure the layout in your rendering accurately reflects the floor plan. Output o
 };
 
 // Fix: Added and exported the missing generateRoomView function.
-export const generateRoomView = async (data: string, mimeType: string, userApiKey?: string): Promise<TryOnResult> => {
+export const generateRoomView = async (data: string, mimeType: string, prompt: string, userApiKey?: string): Promise<TryOnResult> => {
     const apiKey = getApiKey(userApiKey);
     const ai = new GoogleGenAI({ apiKey });
-    const prompt = "You are an expert architectural visualizer. Your task is to transform this top-down view of a room into a photorealistic, eye-level, first-person perspective. Imagine you are standing inside this room and taking a photograph. The generated image must show the room from a human viewpoint, looking forward. It is crucial that you DO NOT output another top-down or bird's-eye view. The style and furniture from the input image must be accurately represented in the new perspective. Output only the final, first-person view image.";
 
     const response = await ai.models.generateContent({
         model: model,
