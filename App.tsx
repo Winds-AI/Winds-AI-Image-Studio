@@ -19,6 +19,7 @@ import { ClothingTypeSelector } from './components/ClothingTypeSelector';
 import { ApiKeyInput } from './components/ApiKeyInput';
 import { InteractiveFloorPlan } from './components/InteractiveFloorPlan';
 import { SpinnerIcon } from './components/icons/SpinnerIcon';
+import { Examples } from './components/Examples';
 
 type AppMode = 'clothingTryOn' | 'glassesTryOn' | 'extractor' | 'threeDView' | 'interiorDesign' | 'interiorVisualization';
 type Studio = 'apparel' | 'eyewear' | 'interior';
@@ -551,6 +552,8 @@ const App: React.FC = () => {
           )}
 
           <ApiKeyInput value={userApiKey} onChange={handleUserApiKeyChange} />
+
+           <Examples />
 
         </div>
       </main>
