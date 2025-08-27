@@ -1,115 +1,109 @@
+
 import React from 'react';
+import { ArrowLongRightIcon } from './icons/ArrowLongRightIcon';
 
-type Step = {
+interface ShowcaseStep {
   title: string;
-  img: string;
-  caption: string;
-};
+  description: string;
+  image: string;
+  isFinal?: boolean;
+}
 
-type ExampleSet = {
+interface ShowcaseExample {
   id: string;
   title: string;
-  steps: Step[];
-};
+  description: string;
+  steps: ShowcaseStep[];
+}
 
-const makeDefaultSteps = (basePath: string): Step[] => [
+const examples: ShowcaseExample[] = [
   {
-    title: 'Initial product image',
-    img: `${basePath}/initial_image.jpg`,
-    caption: 'Source product photo used as input.',
-  },
-  {
-    title: 'Generated style sheet (3D views)',
-    img: `${basePath}/generated_style_sheet.png`,
-    caption: 'Multi-angle generated views from the 3D View Generator.',
-  },
-  {
-    title: 'Initial model picture',
-    img: `${basePath}/model_picture.jpg`,
-    caption: 'Model photo before try-on.',
-  },
-  {
-    title: 'Virtual try-on result',
-    img: `${basePath}/final_picture.png`,
-    caption: 'AI-applied product on the model photo.',
-  },
-];
-
-const exampleSets: ExampleSet[] = [
-  {
-    id: 'example-1',
-    title: 'Example 1',
-    steps: makeDefaultSteps('/examples/example-1'),
-  },
-  {
-    id: 'example-2',
-    title: 'Example 2',
+    id: 'eyewear-workflow',
+    title: 'Full Eyewear Workflow',
+    description: 'From a single product photo to a virtual try-on, see how different AI modes can be chained together for a complete experience.',
     steps: [
       {
-        title: 'Initial product image',
-        img: '/examples/example-2/initial.jpeg',
-        caption: 'Source product photo used as input.',
+        title: 'Step 1: Initial Photo',
+        description: 'Start with a single image of the product.',
+        image: 'examples/example-1-initial.jpg',
       },
       {
-        title: 'Virtual try-on result',
-        img: '/examples/example-2/final.jpeg',
-        caption: 'AI-applied product on a model or scene.',
+        title: 'Step 2: Generate Style Sheet',
+        description: 'Use the 3D View Generator to create multiple angles.',
+        image: 'examples/example-1-sheet.png',
+      },
+      {
+        title: 'Step 3: Prepare for Try-On',
+        description: 'Use the generated sheet and a model photo in the Glasses Try-On mode.',
+        image: 'examples/example-1-model.jpg',
+      },
+      {
+        title: 'Step 4: Final Result',
+        description: 'The final, photorealistic virtual try-on is generated.',
+        image: 'examples/example-1-final.png',
+        isFinal: true,
       },
     ],
-  }
+  },
+  {
+    id: 'quick-try-on',
+    title: 'Quick Glasses Try-On',
+    description: 'This example shows a direct before-and-after for the Glasses Try-On feature using a multi-angle source image.',
+    steps: [
+      {
+        title: 'Before: Product & Model',
+        description: 'Provide a model photo and a multi-angle glasses image.',
+        image: 'examples/example-2-initial.jpg',
+      },
+      {
+        title: 'After: Generated Result',
+        description: 'The AI generates realistic images of the model wearing the glasses.',
+        image: 'examples/example-2-final.png',
+        isFinal: true,
+      },
+    ],
+  },
 ];
 
-const StepCard: React.FC<{ step: Step; index: number }> = ({ step, index }) => {
-  return (
-    <div className="bg-gray-900/50 rounded-xl border border-gray-700 overflow-hidden">
-      <div className="p-3 flex items-center">
-        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-purple-600 text-white text-sm font-bold">
-          {index + 1}
-        </span>
-        <h4 className="ml-2 text-sm font-medium text-white flex-1 leading-tight">{step.title}</h4>
-      </div>
-      <div className="bg-black">
-        <img src={step.img} alt={step.title} className="w-full h-48 md:h-56 lg:h-64 object-contain" />
-      </div>
-      <div className="p-3 text-xs text-gray-400">{step.caption}</div>
+const StepCard: React.FC<{ step: ShowcaseStep, isLast: boolean }> = ({ step, isLast }) => (
+    <div className="flex items-center gap-4 md:gap-6">
+        <div className="flex-shrink-0 w-full md:w-64">
+            <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-3 flex flex-col">
+                <h4 className="font-bold text-lg text-white mb-2">{step.title}</h4>
+                <div className="aspect-video rounded-md overflow-hidden mb-3 border-2 border-gray-600">
+                    <img src={step.image} alt={step.title} className="w-full h-full object-cover"/>
+                </div>
+                <p className="text-gray-400 text-sm flex-grow">{step.description}</p>
+            </div>
+        </div>
+        {!isLast && (
+            <div className="hidden md:block">
+                <ArrowLongRightIcon className="w-10 h-10 text-gray-500" />
+            </div>
+        )}
     </div>
-  );
-};
+);
+
 
 export const Examples: React.FC = () => {
-  return (
-    <section className="mt-14">
-      <h2 className="text-3xl font-extrabold text-white text-center mb-2">Examples</h2>
-      <p className="text-center text-gray-400 mb-8">Explore multiple end-to-end example flows.</p>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
-        {exampleSets.map((set) => (
-          <div key={set.id} className="bg-gray-800/50 border border-gray-700 rounded-2xl overflow-hidden">
-            <div className="p-5 flex items-center justify-between border-b border-gray-700/60">
-              <h3 className="text-xl font-semibold text-white">{set.title}</h3>
-              <span className="text-xs px-2 py-1 rounded-full bg-purple-600/20 text-purple-300 border border-purple-600/40">
-                {set.steps.length} steps
-              </span>
+    return (
+        <div className="bg-gray-800/50 p-6 rounded-2xl border border-gray-700 backdrop-blur-sm mt-8">
+            <h3 className="text-xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-blue-500 mb-6">
+                Explore Workflows
+            </h3>
+            <div className="flex flex-col gap-12">
+                {examples.map((example) => (
+                    <div key={example.id}>
+                        <h4 className="text-2xl font-bold text-white mb-2">{example.title}</h4>
+                        <p className="text-gray-400 mb-6 max-w-3xl">{example.description}</p>
+                        <div className="flex flex-col md:flex-row gap-6 items-start md:items-center overflow-x-auto pb-4 -mb-4">
+                            {example.steps.map((step, index) => (
+                                <StepCard key={index} step={step} isLast={index === example.steps.length - 1} />
+                            ))}
+                        </div>
+                    </div>
+                ))}
             </div>
-
-            {/* Mobile: horizontal scroll steps */}
-            <div className="sm:hidden -mx-5 px-5 pt-4 pb-2 flex gap-4 overflow-x-auto snap-x snap-mandatory">
-              {set.steps.map((s, idx) => (
-                <div key={`${set.id}-${idx}`} className="snap-start shrink-0 w-72">
-                  <StepCard step={s} index={idx} />
-                </div>
-              ))}
-            </div>
-
-            {/* Tablet+ : grid layout */}
-            <div className="hidden sm:grid grid-cols-2 gap-4 p-4">
-              {set.steps.map((s, idx) => (
-                <StepCard key={`${set.id}-${idx}`} step={s} index={idx} />
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
+        </div>
+    );
 };

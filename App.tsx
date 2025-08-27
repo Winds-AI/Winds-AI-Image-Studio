@@ -5,24 +5,17 @@ import { ResultDisplay } from './components/ResultDisplay';
 import { Header } from './components/Header';
 import { TryOnButton } from './components/TryOnButton';
 import { visualTryOn, extractClothingItems, generate3DViews, glassesTryOn, generateInteriorDesign, generateRoomView, identifyAndSegmentRooms } from './services/geminiService';
-import type { ClothingType, TryOnResult, Room } from './types';
+import type { ClothingType, TryOnResult, Room, AppMode, Studio } from './types';
 import { ExtractorResultDisplay } from './components/ExtractorResultDisplay';
 import { ThreeDViewResultDisplay } from './components/ThreeDViewResultDisplay';
 import { GlassesTryOnResultDisplay } from './components/GlassesTryOnResultDisplay';
 import { InteriorResultDisplay } from './components/InteriorResultDisplay';
 import { InteriorViewResultDisplay } from './components/InteriorViewResultDisplay';
-import { GithubIcon } from './components/icons/GithubIcon';
-import { XSocialIcon } from './components/icons/XSocialIcon';
-import { LinkedinIcon } from './components/icons/LinkedinIcon';
-import { NpmIcon } from './components/icons/NpmIcon';
 import { ClothingTypeSelector } from './components/ClothingTypeSelector';
 import { ApiKeyInput } from './components/ApiKeyInput';
 import { InteractiveFloorPlan } from './components/InteractiveFloorPlan';
 import { SpinnerIcon } from './components/icons/SpinnerIcon';
 import { Examples } from './components/Examples';
-
-type AppMode = 'clothingTryOn' | 'glassesTryOn' | 'extractor' | 'threeDView' | 'interiorDesign' | 'interiorVisualization';
-type Studio = 'apparel' | 'eyewear' | 'interior';
 
 const App: React.FC = () => {
   // Common state
@@ -90,11 +83,40 @@ const App: React.FC = () => {
   };
 
   const extractMimeTypeAndData = (base64String: string): { mimeType: string, data: string } => {
+    // Check if it's a direct URL from the examples folder
+    if (!base64String.startsWith('data:')) {
+        // Assume it's a common image type and fetch it.
+        // This is a simplified approach for the examples feature.
+        // A more robust solution would involve actually fetching and converting.
+        const extension = base64String.split('.').pop()?.toLowerCase();
+        const mimeType = `image/${extension === 'jpg' ? 'jpeg' : extension}`;
+        return { mimeType, data: base64String };
+    }
     const match = base64String.match(/^data:(image\/(?:jpeg|png|webp|avif));base64,(.+)$/);
     if (!match) {
         throw new Error('Invalid or unsupported image format. Please use JPEG, PNG, WebP, or AVIF.');
     }
     return { mimeType: match[1], data: match[2] };
+  };
+
+  const imageToData = async (imageUrl: string): Promise<string> => {
+    if (imageUrl.startsWith('data:')) {
+      return imageUrl;
+    }
+    try {
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    } catch (error) {
+        console.error("Error converting image URL to data URL:", error);
+        setError("Could not load the example image. Please check your network connection.");
+        return ""; // Return empty string on failure
+    }
   };
   
   const handleApiError = (err: unknown) => {
@@ -119,8 +141,14 @@ const App: React.FC = () => {
     setClothingTryOnResult(null);
     setIsTryingOnClothing(true);
     try {
-      const { mimeType: personMimeType, data: personData } = extractMimeTypeAndData(personImageForClothing);
-      const { mimeType: clothingMimeType, data: clothingData } = extractMimeTypeAndData(clothingItemImage);
+      const [personImageB64, clothingImageB64] = await Promise.all([
+        imageToData(personImageForClothing),
+        imageToData(clothingItemImage)
+      ]);
+      if (!personImageB64 || !clothingImageB64) return;
+
+      const { mimeType: personMimeType, data: personData } = extractMimeTypeAndData(personImageB64);
+      const { mimeType: clothingMimeType, data: clothingData } = extractMimeTypeAndData(clothingImageB64);
       const result = await visualTryOn(personData, personMimeType, clothingData, clothingMimeType, clothingType, userApiKey);
       setClothingTryOnResult(result);
     } catch (err) {
@@ -143,8 +171,14 @@ const App: React.FC = () => {
     setGlassesTryOnResults(null);
     setIsTryingOnGlasses(true);
     try {
-      const { mimeType: personMimeType, data: personData } = extractMimeTypeAndData(personImageForGlasses);
-      const { mimeType: glassesMimeType, data: glassesData } = extractMimeTypeAndData(glassesImage);
+      const [personImageB64, glassesImageB64] = await Promise.all([
+        imageToData(personImageForGlasses),
+        imageToData(glassesImage)
+      ]);
+      if (!personImageB64 || !glassesImageB64) return;
+
+      const { mimeType: personMimeType, data: personData } = extractMimeTypeAndData(personImageB64);
+      const { mimeType: glassesMimeType, data: glassesData } = extractMimeTypeAndData(glassesImageB64);
       const results = await glassesTryOn(personData, personMimeType, glassesData, glassesMimeType, userApiKey);
       setGlassesTryOnResults(results);
     } catch (err) {
@@ -167,7 +201,9 @@ const App: React.FC = () => {
     setExtractedItems(null);
     setIsExtracting(true);
     try {
-        const { mimeType, data } = extractMimeTypeAndData(extractorImage);
+        const imageB64 = await imageToData(extractorImage);
+        if(!imageB64) return;
+        const { mimeType, data } = extractMimeTypeAndData(imageB64);
         const results = await extractClothingItems(data, mimeType, userApiKey);
         setExtractedItems(results);
     } catch (err) {
@@ -190,7 +226,9 @@ const App: React.FC = () => {
     setThreeDViewResults(null);
     setIsGenerating3DView(true);
     try {
-      const { mimeType, data } = extractMimeTypeAndData(threeDViewImage);
+      const imageB64 = await imageToData(threeDViewImage);
+      if (!imageB64) return;
+      const { mimeType, data } = extractMimeTypeAndData(imageB64);
       const results = await generate3DViews(data, mimeType, userApiKey);
       setThreeDViewResults(results);
     } catch (err) {
@@ -213,7 +251,9 @@ const App: React.FC = () => {
     setInteriorDesignResult(null);
     setIsGeneratingInterior(true);
     try {
-        const { mimeType, data } = extractMimeTypeAndData(floorPlanImage);
+        const imageB64 = await imageToData(floorPlanImage);
+        if(!imageB64) return;
+        const { mimeType, data } = extractMimeTypeAndData(imageB64);
         const result = await generateInteriorDesign(data, mimeType, stylePrompt, userApiKey);
         setInteriorDesignResult(result);
         setInteriorViewInputImage(result.imageUrl);
@@ -244,7 +284,9 @@ const App: React.FC = () => {
     setSelectedRoom(null);
     setIsIdentifyingRooms(true);
     try {
-      const { mimeType, data } = extractMimeTypeAndData(sourceImage);
+      const imageB64 = await imageToData(sourceImage);
+      if(!imageB64) return;
+      const { mimeType, data } = extractMimeTypeAndData(imageB64);
       const result = await identifyAndSegmentRooms(data, mimeType, userApiKey);
       if (result.rooms.length === 0) {
         setError("The AI could not identify any rooms in this image. Please try a clearer floor plan.");
@@ -273,7 +315,9 @@ const App: React.FC = () => {
     setInteriorViewResult(null);
     setIsGeneratingInteriorView(true);
     try {
-      const { mimeType, data } = extractMimeTypeAndData(sourceImage);
+      const imageB64 = await imageToData(sourceImage);
+      if (!imageB64) return;
+      const { mimeType, data } = extractMimeTypeAndData(imageB64);
       const result = await generateRoomView(data, mimeType, selectedRoom.name, selectedRoom.boundary, userApiKey);
       setInteriorViewResult(result);
     } catch (err) {
@@ -552,8 +596,7 @@ const App: React.FC = () => {
           )}
 
           <ApiKeyInput value={userApiKey} onChange={handleUserApiKeyChange} />
-
-           <Examples />
+          <Examples />
 
         </div>
       </main>

@@ -16,3 +16,6 @@ export interface Room {
     height: number;
   };
 }
+
+export type AppMode = 'clothingTryOn' | 'glassesTryOn' | 'extractor' | 'threeDView' | 'interiorDesign' | 'interiorVisualization';
+export type Studio = 'apparel' | 'eyewear' | 'interior';
