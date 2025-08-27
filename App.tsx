@@ -560,12 +560,6 @@ const App: React.FC = () => {
       <footer className="py-8 mt-12 border-t border-gray-800">
         <div className="container mx-auto text-center text-gray-500">
             <p className="mb-4">Built with Gemini by The Winds</p>
-            <div className="flex justify-center items-center gap-6">
-                <a href="https://github.com/charliecyt" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors"><GithubIcon className="w-6 h-6" /></a>
-                <a href="https://x.com/charliecyt" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors"><XSocialIcon className="w-5 h-5" /></a>
-                <a href="https://www.linkedin.com/in/charliecyt/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors"><LinkedinIcon className="w-6 h-6" /></a>
-                <a href="https://www.npmjs.com/~charliecyt" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors"><NpmIcon className="w-6 h-6" /></a>
-            </div>
         </div>
       </footer>
     </div>
