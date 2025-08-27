@@ -50,9 +50,9 @@ export const Header: React.FC<HeaderProps> = ({ activeStudio, onShowExamples }) 
         <div className="flex items-center gap-6">
             <button 
               onClick={onShowExamples}
-              className="font-semibold text-gray-300 hover:text-white transition-colors px-3 py-2 rounded-md"
+              className="font-bold text-black text-xl transition-colors px-4 py-3 rounded-md bg-teal-400"
             >
-              Workflows
+              Examples
             </button>
             <div className="h-6 w-px bg-gray-600"></div>
             <a href="https://github.com/Winds-AI" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors"><GithubIcon className="w-6 h-6" /></a>

@@ -22,29 +22,48 @@ interface ShowcaseExample {
 const examples: ShowcaseExample[] = [
   {
     id: 'apparel-workflow',
-    title: 'Full Apparel Workflow',
-    description: 'From a full outfit photo, extract a single item and place it on a new model.',
+    title: 'Virtual Clothing Try-On',
+    description: 'See how a model can virtually try on an outfit from another image.',
     studio: 'apparel',
     steps: [
        {
-        title: 'Step 1: Source Outfit',
-        description: 'Start with a photo containing multiple clothing items.',
-        image: 'https://ae5j3j4r08.ufs.sh/f/LyvZ1fF3cXo2w4w8zLv8eotfLERN02bZ9WkiXg1QqKYpP5cl',
+        title: 'Step 1: Model Photo',
+        description: 'Start with a photo of the person who will wear the clothes.',
+        image: 'https://ae5j3j4r08.ufs.sh/f/LyvZ1fF3cXo23VOob61AhLBc2qMNRQfgFy4ESV7oOrvYt1Gk',
       },
       {
-        title: 'Step 2: Extract Items',
-        description: 'Use the "Outfit Extractor" to isolate individual items.',
-        image: 'https://ae5j3j4r08.ufs.sh/f/LyvZ1fF3cXo2AurTsaiBYQS8Og3RWMxNUlcqtGpK0fviuHL5',
+        title: 'Step 2: Outfit Photo',
+        description: 'Provide a photo of the clothing item to try on.',
+        image: 'https://ae5j3j4r08.ufs.sh/f/LyvZ1fF3cXo2t0XxYZswPziOYDACkpfxoT3QXNJn16sucF9g',
       },
       {
-        title: 'Step 3: Prepare for Try-On',
-        description: 'Use an extracted item and a new model photo in the "Clothing Try-On" mode.',
-        image: 'https://ae5j3j4r08.ufs.sh/f/LyvZ1fF3cXo2VVnBJfb9dSNQPfT7zsviOEoc0IaWGeHXuy5m',
+        title: 'Step 3: Final Result',
+        description: 'The AI generates a new image with the model wearing the outfit.',
+        image: 'https://ae5j3j4r08.ufs.sh/f/LyvZ1fF3cXo2dCadLXoclmpyPb1ra9OnSwgekViBzqIdho0x',
+        isFinal: true,
+      },
+    ],
+  },
+  {
+    id: 'apparel-extraction-workflow',
+    title: 'Outfit Extraction',
+    description: 'Isolate individual clothing items from a single photo to create a digital wardrobe or prepare items for a virtual try-on.',
+    studio: 'apparel',
+    steps: [
+       {
+        title: 'Step 1: Input Image',
+        description: 'Start with a full-body photo of an outfit.',
+        image: 'https://ae5j3j4r08.ufs.sh/f/LyvZ1fF3cXo2zwhjhAone3TMFrw4UIpvS96BPq2Q57ObKdcL',
       },
       {
-        title: 'Step 4: Final Result',
-        description: 'A new, photorealistic virtual try-on is generated.',
-        image: 'https://ae5j3j4r08.ufs.sh/f/LyvZ1fF3cXo2YKreXI2C4udg3rVR1I9UkNElM8SFftzOaiGp',
+        title: 'Step 2: Extracted Top',
+        description: 'The AI identifies and extracts the top as a separate image.',
+        image: 'https://ae5j3j4r08.ufs.sh/f/LyvZ1fF3cXo2j4nPnTkuOElvXQ78xZeJG9yR3brsmBdqtMH6',
+      },
+      {
+        title: 'Step 3: Extracted Bottom',
+        description: 'It also isolates the bottoms, creating another clean asset.',
+        image: 'https://ae5j3j4r08.ufs.sh/f/LyvZ1fF3cXo2YosUjvC4udg3rVR1I9UkNElM8SFftzOaiGpK',
         isFinal: true,
       },
     ],
@@ -99,29 +118,24 @@ const examples: ShowcaseExample[] = [
   },
   {
     id: 'interior-workflow',
-    title: 'Full Interior Design Workflow',
-    description: 'From a 2D floor plan, generate a furnished 3D top-down view, and then create a photorealistic first-person perspective of a specific room.',
+    title: '2D Floor Plan to First-Person View',
+    description: 'Transform a 2D floor plan into a fully furnished 3D rendering, then generate a photorealistic first-person view of a selected area.',
     studio: 'interior',
     steps: [
       {
         title: 'Step 1: 2D Floor Plan',
-        description: 'Start with a simple black and white floor plan.',
-        image: 'https://ae5j3j4r08.ufs.sh/f/LyvZ1fF3cXo24JT2DLc90dFxGpqjL5biDlhPn4HR3WfevzEc',
+        description: 'Start with a 2D floor plan image.',
+        image: 'https://ae5j3j4r08.ufs.sh/f/LyvZ1fF3cXo2yCnrkhGu2Fis9RvESfZQ7WJTjYAPVXNcBn5w',
       },
       {
-        title: 'Step 2: Generate 3D Top-Down',
-        description: 'Use the "Interior Designer" to create a furnished, colored top-down rendering.',
-        image: 'https://ae5j3j4r08.ufs.sh/f/LyvZ1fF3cXo2AurTsaiBYQS8Og3RWMxNUlcqtGpK0fviuHL5',
-      },
-       {
-        title: 'Step 3: Select a Room',
-        description: 'Highlight a specific room (e.g., the living room) to generate a perspective view.',
-        image: 'https://ae5j3j4r08.ufs.sh/f/LyvZ1fF3cXo2VVnBJfb9dSNQPfT7zsviOEoc0IaWGeHXuy5m',
+        title: 'Step 2: Generate & Select',
+        description: 'Generate a fully furnished top-down view from the floor plan, then select an area for the first-person perspective.',
+        image: 'https://ae5j3j4r08.ufs.sh/f/LyvZ1fF3cXo2v3RFh1S9FBrReOdE4cbk6lxMyfCoNXVGP5iK',
       },
       {
-        title: 'Step 4: Final First-Person View',
-        description: 'The final, photorealistic eye-level view of the selected room.',
-        image: 'https://ae5j3j4r08.ufs.sh/f/LyvZ1fF3cXo2QPcbBMaRhD1WUzgybSPEdkNGI2ea5BCcHX7L',
+        title: 'Step 3: Final First-Person View',
+        description: 'The final, photorealistic eye-level view of the selected area is generated.',
+        image: 'https://ae5j3j4r08.ufs.sh/f/LyvZ1fF3cXo2yJ80Y2Gu2Fis9RvESfZQ7WJTjYAPVXNcBn5w',
         isFinal: true,
       },
     ]
