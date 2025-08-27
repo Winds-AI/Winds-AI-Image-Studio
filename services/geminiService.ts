@@ -120,17 +120,167 @@ const getPromptForClothingType = (clothingType: ClothingType): string => {
     }
 };
 
-// NOTE: The user-provided file was incomplete. The functions below are synthesized based on their usage in App.tsx to ensure the app remains functional.
-
 export const visualTryOn = (personImageData: string, personMimeType: string, clothingImageData: string, clothingMimeType: string, clothingType: ClothingType, userApiKey?: string): Promise<TryOnResult> => {
     const apiKey = getApiKey(userApiKey);
     const prompt = getPromptForClothingType(clothingType);
     return generateFinalImage(personImageData, personMimeType, clothingImageData, clothingMimeType, prompt, apiKey);
 };
-export const extractClothingItems = async (imageData: string, mimeType: string, userApiKey?: string): Promise<TryOnResult[]> => { throw new Error("Function not implemented in provided file."); };
-export const generate3DViews = async (imageData: string, mimeType: string, userApiKey?: string): Promise<TryOnResult[]> => { throw new Error("Function not implemented in provided file."); };
-export const glassesTryOn = async (personData: string, personMimeType: string, glassesData: string, glassesMimeType: string, userApiKey?: string): Promise<TryOnResult[]> => { throw new Error("Function not implemented in provided file."); };
-export const generateInteriorDesign = async (data: string, mimeType: string, stylePrompt: string, userApiKey?: string): Promise<TryOnResult> => { throw new Error("Function not implemented in provided file."); };
+
+export const extractClothingItems = async (imageData: string, mimeType: string, userApiKey?: string): Promise<TryOnResult[]> => {
+    const apiKey = getApiKey(userApiKey);
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await ai.models.generateContent({
+        model: model,
+        contents: {
+            parts: [
+                { inlineData: { data: imageData, mimeType: mimeType } },
+                { text: "You are an expert at image segmentation. Identify every distinct clothing item (like shirts, pants, jackets, shoes, hats) in the image. For each item you find, create a new image that contains only that single item on a transparent background. Output all the generated images." },
+            ],
+        },
+        config: {
+            responseModalities: [Modality.IMAGE, Modality.TEXT],
+        },
+    });
+
+    const parts = getValidatedParts(response, "The AI couldn't extract clothing items.");
+    const results: TryOnResult[] = [];
+    for (const part of parts) {
+        if (part.inlineData) {
+            results.push({
+                imageUrl: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`,
+                text: null
+            });
+        }
+    }
+
+    if (results.length === 0) {
+        const textPart = parts.find(p => p.text);
+        if (textPart && textPart.text) {
+            throw new Error(`The AI provided feedback: ${textPart.text}`);
+        }
+        throw new Error("The AI did not extract any clothing items.");
+    }
+    return results;
+};
+
+export const generate3DViews = async (imageData: string, mimeType: string, userApiKey?: string): Promise<TryOnResult[]> => {
+    const apiKey = getApiKey(userApiKey);
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await ai.models.generateContent({
+        model: model,
+        contents: {
+            parts: [
+                { inlineData: { data: imageData, mimeType: mimeType } },
+                { text: "Given this single image of a product (sunglasses), generate a style sheet of multiple photorealistic views from different angles: front, side, three-quarter, and top-down. Output each view as a separate image." },
+            ],
+        },
+        config: {
+            responseModalities: [Modality.IMAGE, Modality.TEXT],
+        },
+    });
+    
+    const parts = getValidatedParts(response, "The AI couldn't generate 3D views.");
+    const results: TryOnResult[] = [];
+    for (const part of parts) {
+        if (part.inlineData) {
+            results.push({
+                imageUrl: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`,
+                text: null
+            });
+        }
+    }
+    
+    if (results.length === 0) {
+        const textPart = parts.find(p => p.text);
+        if (textPart && textPart.text) {
+            throw new Error(`The AI provided feedback: ${textPart.text}`);
+        }
+        throw new Error("The AI did not generate any views.");
+    }
+    return results;
+};
+
+export const glassesTryOn = async (personData: string, personMimeType: string, glassesData: string, glassesMimeType: string, userApiKey?: string): Promise<TryOnResult[]> => {
+    const apiKey = getApiKey(userApiKey);
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await ai.models.generateContent({
+        model: model,
+        contents: {
+            parts: [
+                { inlineData: { data: personData, mimeType: personMimeType } },
+                { inlineData: { data: glassesData, mimeType: glassesMimeType } },
+                { text: "You are an expert digital stylist specializing in eyewear. The first image is a person. The second image is a style sheet of sunglasses from multiple angles. Your task is to create two photorealistic images of the person wearing the sunglasses. One from a frontal view, and one from a slight side (three-quarter) view. Ensure the fit, perspective, and lighting are realistic. Output only the two final edited images." },
+            ],
+        },
+        config: {
+            responseModalities: [Modality.IMAGE, Modality.TEXT],
+        },
+    });
+
+    const parts = getValidatedParts(response, "The AI couldn't perform the glasses try-on.");
+    const results: TryOnResult[] = [];
+    for (const part of parts) {
+        if (part.inlineData) {
+            results.push({
+                imageUrl: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`,
+                text: null
+            });
+        }
+    }
+    
+    if (results.length === 0) {
+        const textPart = parts.find(p => p.text);
+        if (textPart && textPart.text) {
+            throw new Error(`The AI provided feedback: ${textPart.text}`);
+        }
+        throw new Error("The AI did not generate any try-on images.");
+    }
+    return results;
+};
+
+export const generateInteriorDesign = async (data: string, mimeType: string, stylePrompt: string, userApiKey?: string): Promise<TryOnResult> => {
+    const apiKey = getApiKey(userApiKey);
+    const ai = new GoogleGenAI({ apiKey });
+
+    const prompt = `You are an expert architect and interior designer. Your task is to convert the provided 2D floor plan into a single, beautiful, photorealistic, top-down 3D rendering of a fully furnished and decorated interior.
+    The final image should look like a professional architectural visualization.
+    ${stylePrompt ? `Adhere to the following style guide: ${stylePrompt}.` : "Use a modern, elegant, and inviting style."}
+    Ensure the layout in your rendering accurately reflects the walls, doors, and windows of the source floor plan.
+    Output only the final rendered image.`;
+
+    const response = await ai.models.generateContent({
+        model: model,
+        contents: {
+            parts: [
+                { inlineData: { data: data, mimeType: mimeType } },
+                { text: prompt },
+            ],
+        },
+        config: {
+            responseModalities: [Modality.IMAGE, Modality.TEXT],
+        },
+    });
+
+    const parts = getValidatedParts(response, "The AI couldn't generate an interior design.");
+    const result: TryOnResult = { imageUrl: null, text: null };
+
+    for (const part of parts) {
+        if (part.text) {
+            result.text = part.text;
+        } else if (part.inlineData) {
+            result.imageUrl = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+            break; // We only need one image
+        }
+    }
+    
+    if (!result.imageUrl) {
+        if (result.text) {
+            throw new Error(`The AI provided feedback: ${result.text}`);
+        }
+        throw new Error("The AI did not generate an interior design image.");
+    }
+    return result;
+};
 
 export const identifyAndSegmentRooms = async (imageData: string, mimeType: string, userApiKey?: string): Promise<{ rooms: Room[], maskImageUrl: string }> => {
     const apiKey = getApiKey(userApiKey);
