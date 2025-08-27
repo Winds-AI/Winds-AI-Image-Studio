@@ -1,9 +1,12 @@
 [build]
-  command = "npm run build"
+  command = "pnpm run build"
   publish = "dist"
 
 [build.environment]
   NODE_VERSION = "18"
   NODE_MODULES_CACHE = "false"
-  NPM_FLAGS = "--no-audit --no-fund"
+  # Enable Corepack so pnpm/yarn are available
+  COREPACK_ENABLE_DOWNLOADS = "1"
+  # ensure pnpm is installed
+  PNPM_VERSION = "9.12.1"
 
