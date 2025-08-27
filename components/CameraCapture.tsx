@@ -12,18 +12,26 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isFrontCamera, setIsFrontCamera] = useState<boolean>(false);
 
   useEffect(() => {
     const startCamera = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
-            facingMode: 'user',
+            facingMode: 'environment',
             width: { ideal: 1280 },
             height: { ideal: 720 },
           },
         });
         streamRef.current = stream;
+
+        const videoTrack = stream.getVideoTracks()[0];
+        if (videoTrack) {
+          const settings = videoTrack.getSettings();
+          setIsFrontCamera(settings.facingMode === 'user');
+        }
+
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
         }
@@ -56,15 +64,17 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose
 
       const context = canvas.getContext('2d');
       if (context) {
-        context.translate(canvas.width, 0);
-        context.scale(-1, 1);
+        if (isFrontCamera) {
+            context.translate(canvas.width, 0);
+            context.scale(-1, 1);
+        }
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
         
         const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
         onCapture(dataUrl);
       }
     }
-  }, [onCapture]);
+  }, [onCapture, isFrontCamera]);
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-sm" role="dialog" aria-modal="true" onClick={onClose}>
@@ -90,7 +100,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose
               playsInline
               muted
               className="w-full h-auto rounded-lg"
-              style={{ transform: 'scaleX(-1)' }}
+              style={isFrontCamera ? { transform: 'scaleX(-1)' } : {}}
             />
             <canvas ref={canvasRef} className="hidden" aria-hidden="true" />
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
