@@ -18,6 +18,7 @@ import { SelectionEditor } from './components/SelectionEditor';
 import { HomeIcon } from './components/icons/HomeIcon';
 import { ExamplesPage } from './pages/ExamplesPage';
 import { ImageEditingResultDisplay } from './components/ImageEditingResultDisplay';
+import { DownloadIcon } from './components/icons/DownloadIcon';
 
 const App: React.FC = () => {
   // App view state
@@ -76,12 +77,32 @@ const App: React.FC = () => {
   const [floorPlanImage, setFloorPlanImage] = useState<string | null>(null);
   const [furnishedPlanImage, setFurnishedPlanImage] = useState<string | null>(null);
   const [interiorSourceTab, setInteriorSourceTab] = useState<'generate' | 'upload'>('generate');
-  const [interiorDesignPrompt, setInteriorDesignPrompt] = useState<string>('You are an expert architect and interior designer. Your task is to convert the provided 2D floor plan into a single, beautiful, photorealistic, top-down 3D rendering of a fully furnished and decorated interior.\nThe final image should look like a professional architectural visualization.\nUse a modern, elegant, and inviting style.\nEnsure the layout in your rendering accurately reflects the floor plan. Output only the final rendered image.');
+  const [interiorDesignPrompt, setInteriorDesignPrompt] = useState<string>('You are a precise architectural renderer. Your task is to convert the provided 2D floor plan into a photorealistic, top-down 3D rendering.\n\n**Primary Directive:**\n- You MUST replicate the layout of the input floor plan with 100% accuracy.\n- Do NOT add, remove, or move any walls, doors, or windows.\n\n**Stylistic Directive:**\n- Apply the following style: Modern Farmhouse with white shiplap walls, wide plank oak flooring, matte black fixtures, soapstone countertops, large windows, and a neutral color palette.\n- Render with bright, even, and realistic lighting.\n\n**Output Requirements:**\n- A single, clean, orthographic top-down view.\n- Output only the final rendered image.');
   const [interiorDesignResult, setInteriorDesignResult] = useState<TryOnResult | null>(null);
   const [isGeneratingInterior, setIsGeneratingInterior] = useState<boolean>(false);
 
   // Interior View Mode State
-  const [interiorViewPrompt, setInteriorViewPrompt] = useState<string>("You are an expert architectural visualizer. Your task is to transform this top-down view of a room into a photorealistic, eye-level, first-person perspective. Imagine you are standing inside this room and taking a photograph. The generated image must show the room from a human viewpoint, looking forward. It is crucial that you DO NOT output another top-down or bird's-eye view. The style and furniture from the input image must be accurately represented in the new perspective. Output only the final, first-person view image.");
+  const [interiorViewPrompt, setInteriorViewPrompt] = useState<string>(
+  "You are a professional architectural photographer tasked with capturing an interior shot of the provided room.\n\n" +
+  "**Primary Task:** Your most important instruction is to transform the provided top-down view into a photorealistic, eye-level, first-person photograph. Imagine you are standing inside this room.\n\n" +
+  "**Crucial Command: The output MUST be a first-person, eye-level perspective. DO NOT generate a top-down, bird's-eye, or isometric view.**\n\n" +
+  "**Scene Continuity:**\n" +
+  "- You must maintain perfect visual consistency with the provided top-down image.\n" +
+  "- All furniture, objects (dining table, black chairs), materials (light wood floors, white shiplap walls), and colors must be accurately represented from the new perspective.\n\n" +
+  "**Photographic Details (as recommended by the guide):**\n" +
+  "- **Camera:** Shot on a DSLR.\n" +
+  "- **Lens:** 35mm for a natural, human-eye field of view.\n" +
+  "- **Lighting:** Replicate the bright, natural light from the original scene. Capture soft shadows and realistic reflections on the floor.\n" +
+  "- **Composition:** Frame the shot from a standing position near the entrance of the selected area, looking towards the main window.\n\n" +
+  "**Style:** Photorealistic, high detail, modern interior photograph.\n\n" +
+  "**Negative Prompt (to prevent errors):**\n" +
+  "- top-down view\n" +
+  "- bird's-eye view\n" +
+  "- floor plan\n" +
+  "- orthographic\n" +
+  "- 2D\n" +
+  "- unrealistic, cartoon, render"
+);
   const [interiorViewResult, setInteriorViewResult] = useState<TryOnResult | null>(null);
   const [isGeneratingInteriorView, setIsGeneratingInteriorView] = useState<boolean>(false);
   
@@ -496,6 +517,16 @@ const App: React.FC = () => {
   const renderInteriorDesignMode = () => {
     const sourceImageForSelection = interiorDesignResult?.imageUrl || furnishedPlanImage;
 
+    const handleDownloadImage = (imageUrl: string, filename: string) => {
+        if (!imageUrl) return;
+        const link = document.createElement('a');
+        link.href = imageUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
             <div className="bg-gray-800/50 p-6 rounded-2xl border border-gray-700 backdrop-blur-sm flex flex-col gap-6">
@@ -525,7 +556,7 @@ const App: React.FC = () => {
                                 id="interior-design-prompt"
                                 value={interiorDesignPrompt}
                                 onChange={(e) => setInteriorDesignPrompt(e.target.value)}
-                                rows={6}
+                                rows={10}
                                 className="w-full bg-gray-900 border border-gray-600 rounded-lg py-2 px-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                         </div>
@@ -546,18 +577,30 @@ const App: React.FC = () => {
                     <InteriorResultDisplay isLoading={true} result={null} />
                 ) : sourceImageForSelection ? (
                     <div className="w-full flex flex-col items-center gap-6">
-                        <SelectionEditor 
-                            imageUrl={sourceImageForSelection}
-                            onGenerateView={handleGenerateInteriorView}
-                            isGenerating={isGeneratingInteriorView}
-                        />
+                        <div className="w-full max-w-lg relative">
+                            <SelectionEditor 
+                                imageUrl={sourceImageForSelection}
+                                onGenerateView={handleGenerateInteriorView}
+                                isGenerating={isGeneratingInteriorView}
+                            />
+                            {interiorDesignResult?.imageUrl && (
+                                <button
+                                    onClick={() => handleDownloadImage(interiorDesignResult.imageUrl!, 'furnished-plan.png')}
+                                    className="absolute top-2 right-2 z-10 p-2 bg-gray-900/60 text-white rounded-full hover:bg-gray-800 transition-colors backdrop-blur-sm"
+                                    title="Download Image"
+                                    aria-label="Download generated design"
+                                >
+                                    <DownloadIcon className="w-5 h-5" />
+                                </button>
+                            )}
+                        </div>
                         <div className="w-full flex flex-col items-center gap-2 max-w-lg">
                             <label htmlFor="interior-view-prompt" className="font-semibold text-gray-300 text-center">First-Person View Prompt</label>
                             <textarea
                                 id="interior-view-prompt"
                                 value={interiorViewPrompt}
                                 onChange={(e) => setInteriorViewPrompt(e.target.value)}
-                                rows={6}
+                                rows={14}
                                 className="w-full bg-gray-900 border border-gray-600 rounded-lg py-2 px-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
                             />
                         </div>
